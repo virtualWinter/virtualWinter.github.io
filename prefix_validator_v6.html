@@ -145,84 +145,89 @@
 
 
             // --- IPv6 Helper Functions ---
-            const parseIPv6 = (ip) => {
-                // Simple IPv6 parser that handles :: notation
-                ip = ip.toLowerCase().trim();
+            const ipv6ToBigInt = (ip) => {
+                // Handle :: expansion manually
+                ip = ip.toLowerCase();
 
                 if (ip === '::') {
-                    return Array(8).fill(0);
+                    return 0n;
                 }
 
-                let parts;
+                // Split on :: if present
                 if (ip.includes('::')) {
-                    const [left, right] = ip.split('::');
-                    const leftParts = left ? left.split(':').map(p => parseInt(p, 16) || 0) : [];
-                    const rightParts = right ? right.split(':').map(p => parseInt(p, 16) || 0) : [];
-                    const zeros = Array(8 - leftParts.length - rightParts.length).fill(0);
-                    parts = [...leftParts, ...zeros, ...rightParts];
+                    const parts = ip.split('::');
+                    const left = parts[0] ? parts[0].split(':') : [];
+                    const right = parts[1] ? parts[1].split(':') : [];
+
+                    // Calculate missing zero groups
+                    const missing = 8 - left.length - right.length;
+                    const middle = Array(missing).fill('0');
+
+                    // Combine all parts
+                    const allParts = [...left, ...middle, ...right];
+
+                    let result = 0n;
+                    for (let i = 0; i < 8; i++) {
+                        const val = parseInt(allParts[i] || '0', 16);
+                        result = (result << 16n) + BigInt(val);
+                    }
+                    return result;
                 } else {
-                    parts = ip.split(':').map(p => parseInt(p, 16) || 0);
+                    // No :: present, split normally
+                    const parts = ip.split(':');
+                    if (parts.length !== 8) return 0n;
+
+                    let result = 0n;
+                    for (let i = 0; i < 8; i++) {
+                        const val = parseInt(parts[i], 16);
+                        result = (result << 16n) + BigInt(val);
+                    }
+                    return result;
                 }
-
-                return parts.length === 8 ? parts : null;
-            };
-
-            const isValidIPv6 = (ip) => {
-                const parts = parseIPv6(ip);
-                return parts !== null && parts.every(p => p >= 0 && p <= 0xFFFF);
-            };
-
-            const ipv6ToBigInt = (ip) => {
-                const parts = parseIPv6(ip);
-                if (!parts) return 0n;
-
-                let result = 0n;
-                for (let i = 0; i < 8; i++) {
-                    result = (result << 16n) + BigInt(parts[i]);
-                }
-                return result;
             };
 
             const bigIntToIPv6 = (bigint) => {
                 const parts = [];
+                let temp = bigint;
                 for (let i = 0; i < 8; i++) {
-                    parts.unshift(Number(bigint & 0xFFFFn));
-                    bigint = bigint >> 16n;
+                    parts.unshift(Number(temp & 0xFFFFn).toString(16));
+                    temp = temp >> 16n;
                 }
-                return parts.map(p => p.toString(16)).join(':');
+                return parts.join(':');
             };
 
             const compressIPv6 = (ip) => {
-                const parts = ip.split(':').map(p => p.replace(/^0+/, '') || '0');
+                // Remove leading zeros
+                let parts = ip.split(':').map(p => p.replace(/^0+/, '') || '0');
 
-                // Find longest sequence of zeros
-                let bestStart = -1, bestLen = 0;
-                let currentStart = -1, currentLen = 0;
+                // Find longest run of zeros
+                let maxStart = -1, maxLen = 0;
+                let curStart = -1, curLen = 0;
 
                 for (let i = 0; i < parts.length; i++) {
                     if (parts[i] === '0') {
-                        if (currentStart === -1) currentStart = i;
-                        currentLen++;
+                        if (curStart === -1) curStart = i;
+                        curLen++;
                     } else {
-                        if (currentLen > bestLen && currentLen > 1) {
-                            bestStart = currentStart;
-                            bestLen = currentLen;
+                        if (curLen > maxLen && curLen > 1) {
+                            maxStart = curStart;
+                            maxLen = curLen;
                         }
-                        currentStart = -1;
-                        currentLen = 0;
+                        curStart = -1;
+                        curLen = 0;
                     }
                 }
 
-                // Check final sequence
-                if (currentLen > bestLen && currentLen > 1) {
-                    bestStart = currentStart;
-                    bestLen = currentLen;
+                // Check final run
+                if (curLen > maxLen && curLen > 1) {
+                    maxStart = curStart;
+                    maxLen = curLen;
                 }
 
                 // Apply compression
-                if (bestLen > 1) {
-                    const before = parts.slice(0, bestStart);
-                    const after = parts.slice(bestStart + bestLen);
+                if (maxLen > 1) {
+                    const before = parts.slice(0, maxStart);
+                    const after = parts.slice(maxStart + maxLen);
 
                     if (before.length === 0 && after.length === 0) return '::';
                     if (before.length === 0) return '::' + after.join(':');
@@ -231,6 +236,15 @@
                 }
 
                 return parts.join(':');
+            };
+
+            const isValidIPv6 = (ip) => {
+                try {
+                    const bigint = ipv6ToBigInt(ip);
+                    return bigint >= 0n;
+                } catch (e) {
+                    return false;
+                }
             };
 
             // --- Reserved IPv6 Ranges Logic ---
