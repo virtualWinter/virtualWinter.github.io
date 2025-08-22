@@ -195,16 +195,56 @@
             };
 
             const compressIPv6 = (ip) => {
-                // Basic compression - replace longest sequence of zeros
-                let compressed = ip.replace(/(:0000)+/g, (match) => {
-                    return match === ':0000' ? ':0' : '::';
-                });
+                // Remove leading zeros from each segment
+                let segments = ip.split(':').map(segment => segment.replace(/^0+/, '') || '0');
 
-                // Handle leading zeros in segments
-                compressed = compressed.replace(/\b0+([0-9a-fA-F]+)/g, '$1');
-                compressed = compressed.replace(/\b0000\b/g, '0');
+                // Find the longest sequence of consecutive zeros
+                let maxZeroStart = -1;
+                let maxZeroLength = 0;
+                let currentZeroStart = -1;
+                let currentZeroLength = 0;
 
-                return compressed;
+                for (let i = 0; i < segments.length; i++) {
+                    if (segments[i] === '0') {
+                        if (currentZeroStart === -1) {
+                            currentZeroStart = i;
+                            currentZeroLength = 1;
+                        } else {
+                            currentZeroLength++;
+                        }
+                    } else {
+                        if (currentZeroLength > maxZeroLength && currentZeroLength > 1) {
+                            maxZeroStart = currentZeroStart;
+                            maxZeroLength = currentZeroLength;
+                        }
+                        currentZeroStart = -1;
+                        currentZeroLength = 0;
+                    }
+                }
+
+                // Check final sequence
+                if (currentZeroLength > maxZeroLength && currentZeroLength > 1) {
+                    maxZeroStart = currentZeroStart;
+                    maxZeroLength = currentZeroLength;
+                }
+
+                // Replace the longest zero sequence with ::
+                if (maxZeroLength > 1) {
+                    const before = segments.slice(0, maxZeroStart);
+                    const after = segments.slice(maxZeroStart + maxZeroLength);
+
+                    if (before.length === 0 && after.length === 0) {
+                        return '::';
+                    } else if (before.length === 0) {
+                        return '::' + after.join(':');
+                    } else if (after.length === 0) {
+                        return before.join(':') + '::';
+                    } else {
+                        return before.join(':') + '::' + after.join(':');
+                    }
+                }
+
+                return segments.join(':');
             };
 
             // --- Reserved IPv6 Ranges Logic ---
@@ -286,14 +326,39 @@
                     return;
                 }
 
-                let outputHTML = '';
-                outputHTML += `<div class="results-section"><h4>Input Details</h4><p><strong>Input Prefix:</strong> ${input_prefix}<br><strong>Containing /64 Subnet:</strong> ${containing_net_ip}/64<br><strong>Prefix Type:</strong> ${prefix_type}</p></div>`;
-
                 // Calculate the prefix range
                 const prefix_mask = (0xFFFFFFFFFFFFFFFFn << BigInt(128 - input_cidr));
                 const prefix_net_bigint = input_ip_bigint & prefix_mask;
                 const prefix_size = 2n ** BigInt(128 - input_cidr);
                 const prefix_end_bigint = prefix_net_bigint + prefix_size - 1n;
+
+                // Azure reserved IPs in /64 subnet
+                const azure_reserved_ips = [
+                    containing_net_bigint + 0n,        // ::0 (network)
+                    containing_net_bigint + 1n,        // ::1 (gateway)
+                    containing_net_bigint + 2n,        // ::2 (reserved)
+                    containing_net_bigint + 3n,        // ::3 (reserved)
+                    containing_net_bigint + 0xffffffn  // ::ffffff (broadcast)
+                ];
+
+                // Check if any IP in the prefix range conflicts with Azure reserved IPs
+                let is_invalid = false;
+                let conflicting_ip = '';
+
+                for (let i = prefix_net_bigint; i <= prefix_end_bigint; i++) {
+                    if (azure_reserved_ips.includes(i)) {
+                        is_invalid = true;
+                        conflicting_ip = compressIPv6(bigIntToIPv6(i));
+                        break;
+                    }
+                }
+
+                let outputHTML = '';
+                outputHTML += `<div class="results-section"><h4>Input Details</h4><p><strong>Input Prefix:</strong> ${input_prefix}<br><strong>Containing /64 Subnet:</strong> ${containing_net_ip}/64<br><strong>Prefix Type:</strong> ${prefix_type}</p></div>`;
+
+                // Show Azure reserved IPs
+                const reserved_ips_display = azure_reserved_ips.map(ip => compressIPv6(bigIntToIPv6(ip)));
+                outputHTML += `<div class="results-section"><h4>Azure Reserved IPs in /64 Subnet</h4><ul class="ip-list"><li>${reserved_ips_display.join('</li><li>')}</li></ul></div>`;
 
                 // Generate IP list for the prefix
                 let scanned_ips_html = '';
@@ -312,7 +377,12 @@
                 outputHTML += `<div class="results-section"><h4>Prefix Range (${prefix_size} addresses)</h4><ul class="ip-list">${scanned_ips_html}</ul></div>`;
 
                 // Final validation result
-                const final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment.</p>`;
+                let final_result_html = '';
+                if (is_invalid) {
+                    final_result_html = `<p class="status status-invalid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is INVALID because it contains Azure reserved IP ${conflicting_ip}.</p>`;
+                } else {
+                    final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment.</p>`;
+                }
                 outputHTML += `<div class="results-section"><h4>Final Result</h4>${final_result_html}</div>`;
 
                 resultsDiv.innerHTML = outputHTML;
