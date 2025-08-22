@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPv6 Prefix Validator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1c1e21;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #1877f2;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #166fe5;
+        }
+
+        #results {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #f7f7f7;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: left;
+            min-height: 50px;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        .results-section {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .results-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .results-section h4 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #65676b;
+        }
+
+        .ip-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status-valid {
+            background-color: #e9f5e9;
+            color: #4CAF50;
+        }
+
+        .status-invalid {
+            background-color: #fdecea;
+            color: #f44336;
+        }
+
+        .theme-switcher {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #18191a;
+            color: #e4e6eb;
+        }
+
+        body.dark-mode .container {
+            background-color: #242526;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode h1,
+        body.dark-mode .results-section h4 {
+            color: #e4e6eb;
+        }
+
+        body.dark-mode input[type="text"] {
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+            border-color: #404040;
+        }
+
+        body.dark-mode #results,
+        body.dark-mode .results-section {
+            background-color: #3a3b3c;
+            border-color: #404040;
+        }
+
+        body.dark-mode .status-valid {
+            background-color: #2e4a2f;
+            color: #6aba6e;
+        }
+
+        body.dark-mode .status-invalid {
+            background-color: #5a2a2a;
+            color: #ff8a80;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="theme-switcher">
+        <button id="themeToggle">Toggle Theme</button>
+    </div>
+    <div class="container">
+        <h1>IPv6 Prefix Validator</h1>
+        <div class="input-group">
+            <label for="prefix">IPv6 Prefix</label>
+            <input type="text" id="prefix" placeholder="e.g., 2001:db8:1234:5678::/127">
+        </div>
+        <button id="checkButton">Check Prefix</button>
+        <div id="results"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const prefixInput = document.getElementById('prefix');
+            const checkButton = document.getElementById('checkButton');
+            const resultsDiv = document.getElementById('results');
+            const themeToggle = document.getElementById('themeToggle');
+
+            // --- Theme Switcher Logic ---
+            if (localStorage.getItem('theme') !== 'light') {
+                document.body.classList.add('dark-mode');
+            }
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            });
+
+            // --- IPv6 Helper Functions ---
+            const expandIPv6 = (ip) => {
+                // Remove brackets if present
+                ip = ip.replace(/^\[|\]$/g, '');
+
+                // Handle :: expansion
+                if (ip.includes('::')) {
+                    const parts = ip.split('::');
+                    const left = parts[0] ? parts[0].split(':') : [];
+                    const right = parts[1] ? parts[1].split(':') : [];
+                    const missing = 8 - left.length - right.length;
+                    const middle = Array(missing).fill('0000');
+                    const expanded = [...left, ...middle, ...right];
+                    ip = expanded.join(':');
+                }
+
+                // Pad each segment to 4 characters
+                return ip.split(':').map(segment => segment.padStart(4, '0')).join(':');
+            };
+
+            const isValidIPv6 = (ip) => {
+                try {
+                    const expanded = expandIPv6(ip);
+                    const segments = expanded.split(':');
+                    if (segments.length !== 8) return false;
+                    return segments.every(segment => /^[0-9a-fA-F]{4}$/.test(segment));
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const ipv6ToBigInt = (ip) => {
+                const expanded = expandIPv6(ip);
+                const segments = expanded.split(':');
+                let result = 0n;
+                for (let i = 0; i < 8; i++) {
+                    result = (result << 16n) + BigInt(parseInt(segments[i], 16));
+                }
+                return result;
+            };
+
+            const bigIntToIPv6 = (bigint) => {
+                const segments = [];
+                for (let i = 0; i < 8; i++) {
+                    segments.unshift((bigint & 0xFFFFn).toString(16).padStart(4, '0'));
+                    bigint = bigint >> 16n;
+                }
+                return segments.join(':');
+            };
+
+            const compressIPv6 = (ip) => {
+                // Basic compression - replace longest sequence of zeros
+                let compressed = ip.replace(/(:0000)+/g, (match) => {
+                    return match === ':0000' ? ':0' : '::';
+                });
+
+                // Handle leading zeros in segments
+                compressed = compressed.replace(/\b0+([0-9a-fA-F]+)/g, '$1');
+                compressed = compressed.replace(/\b0000\b/g, '0');
+
+                return compressed;
+            };
+
+            // --- Reserved IPv6 Ranges Logic ---
+            const testIsReservedIPv6 = (ip) => {
+                const ipBigInt = ipv6ToBigInt(ip);
+
+                // Link-local (fe80::/10)
+                const linkLocalStart = ipv6ToBigInt('fe80::');
+                const linkLocalEnd = ipv6ToBigInt('febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff');
+                if (ipBigInt >= linkLocalStart && ipBigInt <= linkLocalEnd) return "LINK-LOCAL";
+
+                // Loopback (::1/128)
+                if (ipBigInt === 1n) return "LOOPBACK";
+
+                // Unspecified (::0/128)
+                if (ipBigInt === 0n) return "UNSPECIFIED";
+
+                // Multicast (ff00::/8)
+                const multicastStart = ipv6ToBigInt('ff00::');
+                const multicastEnd = ipv6ToBigInt('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff');
+                if (ipBigInt >= multicastStart && ipBigInt <= multicastEnd) return "MULTICAST";
+
+                // Documentation (2001:db8::/32)
+                const docStart = ipv6ToBigInt('2001:db8::');
+                const docEnd = ipv6ToBigInt('2001:db8:ffff:ffff:ffff:ffff:ffff:ffff');
+                if (ipBigInt >= docStart && ipBigInt <= docEnd) return "DOCUMENTATION";
+
+                // Unique Local (fc00::/7)
+                const ulStart = ipv6ToBigInt('fc00::');
+                const ulEnd = ipv6ToBigInt('fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff');
+                if (ipBigInt >= ulStart && ipBigInt <= ulEnd) return "UNIQUE-LOCAL";
+
+                return "GLOBAL";
+            };
+
+            // --- Main Check Logic ---
+            checkButton.addEventListener('click', () => {
+                resultsDiv.innerHTML = ''; // Clear previous results
+                const input_prefix = prefixInput.value.trim();
+
+                // --- Input Validation ---
+                if (!input_prefix) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: IPv6 prefix is required.</p>';
+                    return;
+                }
+
+                const prefix_parts = input_prefix.split('/');
+                if (prefix_parts.length !== 2) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid IPv6/PREFIX format.</p>';
+                    return;
+                }
+
+                const input_ip = prefix_parts[0];
+                const input_cidr = parseInt(prefix_parts[1], 10);
+
+                if (!isValidIPv6(input_ip)) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid IPv6 address format.</p>';
+                    return;
+                }
+
+                // Check if prefix length is valid for IPv6 prefixes
+                const validPrefixLengths = [124, 125, 126, 127];
+                if (!validPrefixLengths.includes(input_cidr)) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid IPv6 prefix length. Only /124, /125, /126, and /127 are valid for IPv6 prefixes.</p>';
+                    return;
+                }
+
+                // --- Main Processing ---
+                const input_ip_bigint = ipv6ToBigInt(input_ip);
+
+                // Calculate the containing /64 subnet
+                const subnet_mask = (0xFFFFFFFFFFFFFFFFn << BigInt(128 - 64));
+                const containing_net_bigint = input_ip_bigint & subnet_mask;
+                const containing_net_ip = compressIPv6(bigIntToIPv6(containing_net_bigint));
+
+                const prefix_type = testIsReservedIPv6(input_ip);
+                if (["LOOPBACK", "UNSPECIFIED", "MULTICAST"].includes(prefix_type)) {
+                    resultsDiv.innerHTML = `<p class="status status-invalid">Result: Prefix ${input_prefix} is INVALID because it belongs to a reserved unroutable namespace (${prefix_type}).</p>`;
+                    return;
+                }
+
+                let outputHTML = '';
+                outputHTML += `<div class="results-section"><h4>Input Details</h4><p><strong>Input Prefix:</strong> ${input_prefix}<br><strong>Containing /64 Subnet:</strong> ${containing_net_ip}/64<br><strong>Prefix Type:</strong> ${prefix_type}</p></div>`;
+
+                // Calculate the prefix range
+                const prefix_mask = (0xFFFFFFFFFFFFFFFFn << BigInt(128 - input_cidr));
+                const prefix_net_bigint = input_ip_bigint & prefix_mask;
+                const prefix_size = 2n ** BigInt(128 - input_cidr);
+                const prefix_end_bigint = prefix_net_bigint + prefix_size - 1n;
+
+                // Generate IP list for the prefix
+                let scanned_ips_html = '';
+                const max_ips_to_show = 16; // Limit display for larger prefixes
+                let ip_count = 0;
+
+                for (let i = prefix_net_bigint; i <= prefix_end_bigint && ip_count < max_ips_to_show; i++, ip_count++) {
+                    const current_ip = compressIPv6(bigIntToIPv6(i));
+                    scanned_ips_html += `<li>${current_ip}</li>`;
+                }
+
+                if (prefix_size > BigInt(max_ips_to_show)) {
+                    scanned_ips_html += `<li>... and ${prefix_size - BigInt(max_ips_to_show)} more addresses</li>`;
+                }
+
+                outputHTML += `<div class="results-section"><h4>Prefix Range (${prefix_size} addresses)</h4><ul class="ip-list">${scanned_ips_html}</ul></div>`;
+
+                // Final validation result
+                const final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment.</p>`;
+                outputHTML += `<div class="results-section"><h4>Final Result</h4>${final_result_html}</div>`;
+
+                resultsDiv.innerHTML = outputHTML;
+            });
+        });
+    </script>
+</body>
+
+</html>
