@@ -353,6 +353,10 @@
                     }
                 }
 
+                // Check if prefix is valid for NAT via DHCP (must start immediately after ::3)
+                const dhcp_start = containing_net_bigint + 4n; // ::4
+                const is_dhcp_valid = prefix_net_bigint === dhcp_start;
+
                 let outputHTML = '';
                 outputHTML += `<div class="results-section"><h4>Input Details</h4><p><strong>Input Prefix:</strong> ${input_prefix}<br><strong>Containing /64 Subnet:</strong> ${containing_net_ip}/64<br><strong>Prefix Type:</strong> ${prefix_type}</p></div>`;
 
@@ -381,7 +385,13 @@
                 if (is_invalid) {
                     final_result_html = `<p class="status status-invalid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is INVALID because it contains Azure reserved IP ${conflicting_ip}.</p>`;
                 } else {
-                    final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment.</p>`;
+                    let dhcp_status = '';
+                    if (is_dhcp_valid) {
+                        dhcp_status = ' and is VALID for NAT via DHCP (starts immediately after ::3)';
+                    } else {
+                        dhcp_status = ' but is NOT VALID for NAT via DHCP (must start at ::4)';
+                    }
+                    final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment${dhcp_status}.</p>`;
                 }
                 outputHTML += `<div class="results-section"><h4>Final Result</h4>${final_result_html}</div>`;
 
