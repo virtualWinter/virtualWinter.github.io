@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prefix Validator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px; /* Increased width for better layout */
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1c1e21;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #1877f2;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #166fe5;
+        }
+
+        #results {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #f7f7f7;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: left;
+            min-height: 50px;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        
+        .results-section {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .results-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .results-section h4 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #65676b;
+        }
+        .ip-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+            font-family: "Courier New", Courier, monospace;
+        }
+        .status {
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status-valid {
+            background-color: #e9f5e9;
+            color: #4CAF50;
+        }
+        .status-invalid {
+            background-color: #fdecea;
+            color: #f44336;
+        }
+
+        .theme-switcher {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #18191a;
+            color: #e4e6eb;
+        }
+        body.dark-mode .container {
+            background-color: #242526;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode h1, body.dark-mode .results-section h4 {
+            color: #e4e6eb;
+        }
+        body.dark-mode input[type="text"] {
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+            border-color: #404040;
+        }
+        body.dark-mode #results, body.dark-mode .results-section {
+            background-color: #3a3b3c;
+            border-color: #404040;
+        }
+        body.dark-mode .status-valid {
+            background-color: #2e4a2f;
+            color: #6aba6e;
+        }
+        body.dark-mode .status-invalid {
+            background-color: #5a2a2a;
+            color: #ff8a80;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="theme-switcher">
+        <button id="themeToggle">Toggle Theme</button>
+    </div>
+    <div class="container">
+        <h1>Prefix Validator</h1>
+        <div class="input-group">
+            <label for="prefix">IP Prefix</label>
+            <input type="text" id="prefix" placeholder="e.g., 10.0.4.0/31">
+        </div>
+        <div class="input-group">
+            <label for="subnet">Containing Subnet</label>
+            <input type="text" id="subnet" placeholder="e.g., 10.0.0.0/8 or 29">
+        </div>
+        <button id="checkButton">Check Prefix</button>
+        <div id="results"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const prefixInput = document.getElementById('prefix');
+            const subnetInput = document.getElementById('subnet');
+            const checkButton = document.getElementById('checkButton');
+            const resultsDiv = document.getElementById('results');
+            const themeToggle = document.getElementById('themeToggle');
+
+            // --- Theme Switcher Logic ---
+            if (localStorage.getItem('theme') !== 'light') {
+                document.body.classList.add('dark-mode');
+            }
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            });
+
+            // --- Helper Functions ---
+            const ipToInt = (ip) => {
+                if (typeof ip !== 'string' || !ip.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) return NaN;
+                return ip.split('.').reduce((int, octet) => (int << 8) + parseInt(octet, 10), 0) >>> 0;
+            };
+            const intToIp = (int) => {
+                if (typeof int !== 'number' || int < 0 || int > 0xFFFFFFFF) return '';
+                return `${(int >>> 24)}.${(int >> 16) & 0xFF}.${(int >> 8) & 0xFF}.${int & 0xFF}`;
+            };
+
+            // --- Reserved IP Ranges Logic ---
+            const testIsReservedIp = (ip) => {
+                const ip_int = ipToInt(ip);
+                const private_ranges = [{ net: "10.0.0.0", cidr: 8 }, { net: "172.16.0.0", cidr: 12 }, { net: "192.168.0.0", cidr: 16 }];
+                const reserved_ranges = [
+                    { net: "0.0.0.0", cidr: 8 }, { net: "100.64.0.0", cidr: 10 }, { net: "127.0.0.0", cidr: 8 }, { net: "169.254.0.0", cidr: 16 }, 
+                    { net: "192.0.0.0", cidr: 24 }, { net: "192.0.2.0", cidr: 24 }, { net: "192.88.99.0", cidr: 24 }, { net: "198.18.0.0", cidr: 15 }, 
+                    { net: "198.51.100.0", cidr: 24 }, { net: "203.0.113.0", cidr: 24 }, { net: "224.0.0.0", cidr: 4 }, { net: "240.0.0.0", cidr: 4 }, 
+                    { net: "255.255.255.255", cidr: 32 }];
+                const checkRanges = (ranges) => {
+                    for (const range of ranges) {
+                        const net_ip_int = ipToInt(range.net);
+                        const mask = (0xFFFFFFFF << (32 - range.cidr)) >>> 0;
+                        const net_start = net_ip_int & mask;
+                        const net_end = net_start + Math.pow(2, (32 - range.cidr)) - 1;
+                        if (ip_int >= net_start && ip_int <= net_end) return true;
+                    }
+                    return false;
+                };
+                if (checkRanges(private_ranges)) return "PRIVATE";
+                if (checkRanges(reserved_ranges)) return "RESERVED";
+                return "PUBLIC";
+            };
+
+            // --- Main Check Logic ---
+            checkButton.addEventListener('click', () => {
+                resultsDiv.innerHTML = ''; // Clear previous results
+                const input_prefix = prefixInput.value.trim();
+                const containing_subnet_arg = subnetInput.value.trim();
+
+                // --- Input Validation ---
+                if (!input_prefix || !containing_subnet_arg) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Both input fields are required.</p>';
+                    return;
+                }
+                const prefix_parts = input_prefix.split('/');
+                if (prefix_parts.length !== 2) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid IP/PREFIX format.</p>';
+                    return;
+                }
+                const input_ip = prefix_parts[0];
+                const input_cidr = parseInt(prefix_parts[1], 10);
+                const input_ip_int = ipToInt(input_ip);
+                if (isNaN(input_ip_int)) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid IP address format.</p>';
+                    return;
+                }
+                if (isNaN(input_cidr) || input_cidr < 0 || input_cidr > 32) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid input CIDR prefix size.</p>';
+                    return;
+                }
+                let containing_cidr = 0;
+                let containing_net_ip = "";
+                if (containing_subnet_arg.includes('/')) {
+                    const subnet_parts = containing_subnet_arg.split('/');
+                    containing_net_ip = subnet_parts[0];
+                    containing_cidr = parseInt(subnet_parts[1], 10);
+                } else {
+                    containing_cidr = parseInt(containing_subnet_arg, 10);
+                }
+                if (isNaN(containing_cidr) || containing_cidr < 0 || containing_cidr > 32) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Invalid containing CIDR prefix size.</p>';
+                    return;
+                }
+                if (input_cidr < containing_cidr) {
+                    resultsDiv.innerHTML = '<p class="status status-invalid">Error: Input prefix cannot be larger than the containing subnet.</p>';
+                    return;
+                }
+
+                // --- Main Processing ---
+                const prefix_type = testIsReservedIp(input_ip);
+                if (prefix_type === "RESERVED") {
+                    resultsDiv.innerHTML = `<p class="status status-invalid">Result: Prefix ${input_prefix} is INVALID because it belongs to a reserved unroutable namespace.</p>`;
+                    return;
+                }
+
+                const containing_mask = (0xFFFFFFFF << (32 - containing_cidr)) >>> 0;
+                let containing_net_int = 0;
+                if (containing_net_ip) {
+                    containing_net_int = ipToInt(containing_net_ip);
+                    if ((containing_net_int & containing_mask) !== containing_net_int) {
+                        const correct_net_ip = intToIp(containing_net_int & containing_mask);
+                        resultsDiv.innerHTML = `<p class="status status-invalid">Error: The provided containing subnet '${containing_subnet_arg}' is not a valid network address. For a /${containing_cidr} prefix, the network address should be ${correct_net_ip}.</p>`;
+                        return;
+                    }
+                    if ((input_ip_int & containing_mask) !== containing_net_int) {
+                        resultsDiv.innerHTML = `<p class="status status-invalid">Error: The input IP '${input_ip}' does not belong to the specified containing subnet '${containing_subnet_arg}'.</p>`;
+                        return;
+                    }
+                } else {
+                    containing_net_int = input_ip_int & containing_mask;
+                    containing_net_ip = intToIp(containing_net_int);
+                }
+
+                let outputHTML = '';
+                outputHTML += `<div class="results-section"><h4>Input Details</h4><p><strong>Input Prefix:</strong> ${input_prefix}<br><strong>Containing Subnet:</strong> ${containing_net_ip}/${containing_cidr}</p></div>`;
+
+                const reserved_ips = [];
+                reserved_ips.push(intToIp(containing_net_int + 0));
+                reserved_ips.push(intToIp(containing_net_int + 1));
+                reserved_ips.push(intToIp(containing_net_int + 2));
+                reserved_ips.push(intToIp(containing_net_int + 3));
+                const broadcast_offset = Math.pow(2, 32 - containing_cidr) - 1;
+                const broadcast_int = containing_net_int + broadcast_offset;
+                reserved_ips.push(intToIp(broadcast_int));
+                outputHTML += `<div class="results-section"><h4>Reserved IPs in /${containing_cidr} Block</h4><ul class="ip-list"><li>${reserved_ips.join('</li><li>')}</li></ul></div>`;
+
+                const mask_input = (0xFFFFFFFF << (32 - input_cidr)) >>> 0;
+                const net_input_int = input_ip_int & mask_input;
+                const bcast_input_int = net_input_int + Math.pow(2, 32 - input_cidr) - 1;
+                let scanned_ips_html = '';
+                let is_invalid = false;
+                let final_result_html = '';
+
+                for (let i = net_input_int; i <= bcast_input_int; i++) {
+                    const current_ip = intToIp(i);
+                    scanned_ips_html += `<li>${current_ip}</li>`;
+                    if (reserved_ips.includes(current_ip)) {
+                        final_result_html = `<p class="status status-invalid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is INVALID because it contains reserved IP ${current_ip}.</p>`;
+                        is_invalid = true;
+                        break;
+                    }
+                }
+                outputHTML += `<div class="results-section"><h4>Scanned IP Range</h4><ul class="ip-list">${scanned_ips_html}</ul></div>`;
+
+                if (!is_invalid) {
+                    final_result_html = `<p class="status status-valid">Result: Prefix ${input_prefix} is a ${prefix_type} prefix and is VALID for assignment.</p>`;
+                }
+                outputHTML += `<div class="results-section"><h4>Final Result</h4>${final_result_html}</div>`;
+
+                resultsDiv.innerHTML = outputHTML;
+            });
+        });
+    </script>
+</body>
+</html>
