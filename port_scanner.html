@@ -577,55 +577,79 @@
                         });
                     }
 
-                    // ICMP Ping Test (using image loading as proxy)
+                    // ICMP Ping Test (using multiple HTTP requests to infer host reachability)
                     tests.push({
                         name: 'ICMP-Ping',
                         protocol: 'ICMPv4',
                         test: () => {
                             return new Promise((pingResolve) => {
-                                const img = new Image();
-                                const timeoutId = setTimeout(() => {
-                                    img.src = '';
-                                    pingResolve({
-                                        success: false,
-                                        protocol: 'ICMPv4',
-                                        method: 'ICMP-Ping',
-                                        details: 'ICMP ping timeout (host may be down or ICMP blocked)'
-                                    });
-                                }, 1000);
-
-                                img.onload = () => {
-                                    clearTimeout(timeoutId);
-                                    pingResolve({
-                                        success: true,
-                                        protocol: 'ICMPv4',
-                                        method: 'ICMP-Ping',
-                                        details: 'Host responding to ICMP (via HTTP image request)'
-                                    });
-                                };
-
-                                img.onerror = () => {
-                                    clearTimeout(timeoutId);
-                                    const responseTime = Date.now() - startTime;
-                                    if (responseTime < 50) {
-                                        pingResolve({
-                                            success: false,
-                                            protocol: 'ICMPv4',
-                                            method: 'ICMP-Ping',
-                                            details: 'Host unreachable (ICMP blocked or host down)'
-                                        });
-                                    } else {
-                                        pingResolve({
-                                            success: true,
-                                            protocol: 'ICMPv4',
-                                            method: 'ICMP-Ping',
-                                            details: 'Host reachable (ICMP allowed, HTTP service may be down)'
-                                        });
+                                const testStartTime = Date.now();
+                                let completedTests = 0;
+                                let successfulConnections = 0;
+                                const totalTests = 3;
+                                
+                                const checkComplete = () => {
+                                    completedTests++;
+                                    if (completedTests === totalTests) {
+                                        const responseTime = Date.now() - testStartTime;
+                                        
+                                        if (successfulConnections > 0) {
+                                            pingResolve({
+                                                success: true,
+                                                protocol: 'ICMPv4',
+                                                method: 'ICMP-Ping',
+                                                details: `Host reachable (${successfulConnections}/${totalTests} HTTP probes successful, ${responseTime}ms)`
+                                            });
+                                        } else if (responseTime > 2000) {
+                                            pingResolve({
+                                                success: false,
+                                                protocol: 'ICMPv4',
+                                                method: 'ICMP-Ping',
+                                                details: 'Host likely unreachable (all HTTP probes timed out)'
+                                            });
+                                        } else {
+                                            pingResolve({
+                                                success: false,
+                                                protocol: 'ICMPv4',
+                                                method: 'ICMP-Ping',
+                                                details: 'Host status unclear (HTTP services may be blocked, but host could be up)'
+                                            });
+                                        }
                                     }
                                 };
 
-                                // Try to ping via a simple image request
-                                img.src = `http://${host}/favicon.ico?ping=${Date.now()}`;
+                                // Test multiple common HTTP endpoints to infer host reachability
+                                const testEndpoints = [
+                                    `http://${host}/`,
+                                    `http://${host}/favicon.ico`,
+                                    `http://${host}/robots.txt`
+                                ];
+
+                                testEndpoints.forEach((url, index) => {
+                                    const controller = new AbortController();
+                                    const timeoutId = setTimeout(() => {
+                                        controller.abort();
+                                        checkComplete();
+                                    }, 1500);
+
+                                    fetch(url, {
+                                        method: 'HEAD',
+                                        mode: 'no-cors',
+                                        signal: controller.signal,
+                                        cache: 'no-cache'
+                                    }).then(() => {
+                                        clearTimeout(timeoutId);
+                                        successfulConnections++;
+                                        checkComplete();
+                                    }).catch((error) => {
+                                        clearTimeout(timeoutId);
+                                        // Even network errors indicate the host responded
+                                        if (error.name !== 'AbortError') {
+                                            successfulConnections++;
+                                        }
+                                        checkComplete();
+                                    });
+                                });
                             });
                         }
                     });

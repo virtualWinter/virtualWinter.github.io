@@ -215,10 +215,21 @@
             margin-bottom: 0.5rem;
         }
 
-        .score-excellent { color: #6aba6e; }
-        .score-good { color: #81c784; }
-        .score-warning { color: #ffb74d; }
-        .score-poor { color: #ff8a80; }
+        .score-excellent {
+            color: #6aba6e;
+        }
+
+        .score-good {
+            color: #81c784;
+        }
+
+        .score-warning {
+            color: #ffb74d;
+        }
+
+        .score-poor {
+            color: #ff8a80;
+        }
 
         .mx-server {
             background-color: #2a2b2c;
@@ -260,7 +271,7 @@
             const checkDNS = async (domain, recordType) => {
                 try {
                     const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${recordType}`;
-                    
+
                     const response = await fetch(url, {
                         headers: {
                             'Accept': 'application/dns-json'
@@ -292,7 +303,7 @@
                 }
 
                 const spf = spfRecord.toLowerCase();
-                
+
                 // Check version
                 if (!spf.startsWith('v=spf1')) {
                     analysis.issues.push('Invalid SPF version');
@@ -331,11 +342,11 @@
                 }
 
                 // Check for too many DNS lookups
-                const dnsLookups = mechanisms.filter(m => 
-                    m.startsWith('include:') || m.startsWith('a:') || m.startsWith('mx:') || 
+                const dnsLookups = mechanisms.filter(m =>
+                    m.startsWith('include:') || m.startsWith('a:') || m.startsWith('mx:') ||
                     m.startsWith('exists:') || m.startsWith('redirect=')
                 ).length;
-                
+
                 if (dnsLookups > 10) {
                     analysis.issues.push(`Too many DNS lookups (${dnsLookups}/10 max)`);
                     analysis.score -= 15;
@@ -363,7 +374,7 @@
                 }
 
                 const dmarc = dmarcRecord.toLowerCase();
-                
+
                 if (!dmarc.startsWith('v=dmarc1')) {
                     analysis.issues.push('Invalid DMARC version');
                     return analysis;
@@ -484,8 +495,8 @@
                 if (results.spf) {
                     const spfItem = document.createElement('div');
                     spfItem.className = 'summary-item';
-                    const spfClass = results.spf.status === 'pass' ? 'score-excellent' : 
-                                   results.spf.status === 'warning' ? 'score-warning' : 'score-poor';
+                    const spfClass = results.spf.status === 'pass' ? 'score-excellent' :
+                        results.spf.status === 'warning' ? 'score-warning' : 'score-poor';
                     spfItem.innerHTML = `
                         <div class="summary-score ${spfClass}">${results.spf.score}%</div>
                         <div>SPF Score</div>
@@ -496,8 +507,8 @@
                 if (results.dmarc) {
                     const dmarcItem = document.createElement('div');
                     dmarcItem.className = 'summary-item';
-                    const dmarcClass = results.dmarc.status === 'pass' ? 'score-excellent' : 
-                                     results.dmarc.status === 'warning' ? 'score-warning' : 'score-poor';
+                    const dmarcClass = results.dmarc.status === 'pass' ? 'score-excellent' :
+                        results.dmarc.status === 'warning' ? 'score-warning' : 'score-poor';
                     dmarcItem.innerHTML = `
                         <div class="summary-score ${dmarcClass}">${results.dmarc.score}%</div>
                         <div>DMARC Score</div>
@@ -585,7 +596,7 @@
                     // Check SPF record
                     updateProgress(++step, totalSteps);
                     const txtData = await checkDNS(domain, 'TXT');
-                    const spfRecord = txtData.Answer?.find(record => 
+                    const spfRecord = txtData.Answer?.find(record =>
                         record.data.toLowerCase().startsWith('v=spf1')
                     );
                     results.spf = analyzeSPF(spfRecord?.data);
@@ -593,7 +604,7 @@
                     // Check DMARC record
                     updateProgress(++step, totalSteps);
                     const dmarcData = await checkDNS(`_dmarc.${domain}`, 'TXT');
-                    const dmarcRecord = dmarcData.Answer?.find(record => 
+                    const dmarcRecord = dmarcData.Answer?.find(record =>
                         record.data.toLowerCase().startsWith('v=dmarc1')
                     );
                     results.dmarc = analyzeDMARC(dmarcRecord?.data);
@@ -617,9 +628,9 @@
                             const mxHost = mx.data.replace(/\.$/, ''); // Remove trailing dot
                             const tlsaData = await checkDNS(`_25._tcp.${mxHost}`, 'TLSA');
                             if (tlsaData.Answer && tlsaData.Answer.length > 0) {
-                                results.tlsa.push({ 
-                                    host: mxHost, 
-                                    records: tlsaData.Answer.map(r => r.data) 
+                                results.tlsa.push({
+                                    host: mxHost,
+                                    records: tlsaData.Answer.map(r => r.data)
                                 });
                             }
                         }
@@ -641,7 +652,7 @@
                     mxSection.innerHTML = `
                         <h3>MX Records <span class="status-badge ${results.mx.length > 0 ? 'status-pass' : 'status-fail'}">${results.mx.length > 0 ? 'FOUND' : 'MISSING'}</span></h3>
                     `;
-                    
+
                     if (results.mx.length > 0) {
                         results.mx.forEach(mx => {
                             const mxDiv = document.createElement('div');
@@ -664,12 +675,12 @@
                     spfSection.innerHTML = `
                         <h3>SPF (Sender Policy Framework) <span class="status-badge status-${results.spf.status}">${results.spf.status.toUpperCase()}</span></h3>
                     `;
-                    
+
                     if (spfRecord) {
                         spfSection.innerHTML += `<div class="record-data">${spfRecord.data}</div>`;
                         spfSection.innerHTML += `<div class="analysis-item"><strong>Mechanisms:</strong> ${results.spf.mechanisms.join(', ')}</div>`;
                     }
-                    
+
                     if (results.spf.issues.length > 0) {
                         results.spf.issues.forEach(issue => {
                             spfSection.innerHTML += `<div class="analysis-item">⚠️ ${issue}</div>`;
@@ -683,14 +694,14 @@
                     dmarcSection.innerHTML = `
                         <h3>DMARC (Domain-based Message Authentication) <span class="status-badge status-${results.dmarc.status}">${results.dmarc.status.toUpperCase()}</span></h3>
                     `;
-                    
+
                     if (dmarcRecord) {
                         dmarcSection.innerHTML += `<div class="record-data">${dmarcRecord.data}</div>`;
                         if (results.dmarc.policy) {
                             dmarcSection.innerHTML += `<div class="analysis-item"><strong>Policy:</strong> ${results.dmarc.policy}</div>`;
                         }
                     }
-                    
+
                     if (results.dmarc.issues.length > 0) {
                         results.dmarc.issues.forEach(issue => {
                             dmarcSection.innerHTML += `<div class="analysis-item">⚠️ ${issue}</div>`;
@@ -704,7 +715,7 @@
                     dkimSection.innerHTML = `
                         <h3>DKIM (DomainKeys Identified Mail) <span class="status-badge ${results.dkim.length > 0 ? 'status-pass' : 'status-warning'}">${results.dkim.length > 0 ? 'FOUND' : 'NOT FOUND'}</span></h3>
                     `;
-                    
+
                     if (results.dkim.length > 0) {
                         results.dkim.forEach(dkim => {
                             dkimSection.innerHTML += `
@@ -725,7 +736,7 @@
                     tlsaSection.innerHTML = `
                         <h3>TLSA Records (DNS-based Authentication) <span class="status-badge ${results.tlsa.length > 0 ? 'status-pass' : 'status-warning'}">${results.tlsa.length > 0 ? 'FOUND' : 'NOT FOUND'}</span></h3>
                     `;
-                    
+
                     if (results.tlsa.length > 0) {
                         results.tlsa.forEach(tlsa => {
                             tlsaSection.innerHTML += `
@@ -751,7 +762,7 @@
                             <strong>Note:</strong> ${results.certificate.message}
                         </div>
                     `;
-                    
+
                     if (results.certificate.recommendations) {
                         certSection.innerHTML += '<div class="analysis-item"><strong>Recommendations:</strong></div>';
                         results.certificate.recommendations.forEach(rec => {
