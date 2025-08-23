@@ -72,6 +72,26 @@
             background-color: #166fe5;
         }
 
+        .home-button {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid #404040;
+            transition: background-color 0.2s;
+        }
+
+        .home-button:hover {
+            background-color: #4e4f50;
+            text-decoration: none;
+        }
+
         #results {
             margin-top: 1.5rem;
             padding: 1rem;
@@ -128,14 +148,15 @@
 </head>
 
 <body>
-    <div class="container">
-        <h1>IPv6 Prefix Validator</h1>
-        <div class="input-group">
-            <label for="prefix">IPv6 Prefix</label>
-            <input type="text" id="prefix" placeholder="e.g., 2001:db8:1234:5678::/127">
-        </div>
-        <button id="checkButton">Check Prefix</button>
-        <div id="results"></div>
+    <a href="index.html" class="home-button">← Home</a>
+    <div class="container"></div>
+    <h1>IPv6 Prefix Validator</h1>
+    <div class="input-group">
+        <label for="prefix">IPv6 Prefix</label>
+        <input type="text" id="prefix" placeholder="e.g., 2001:db8:1234:5678::/127">
+    </div>
+    <button id="checkButton">Check Prefix</button>
+    <div id="results"></div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
