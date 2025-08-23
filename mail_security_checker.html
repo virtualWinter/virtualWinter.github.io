@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mail Security Checker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #18191a;
+            color: #e4e6eb;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            background-color: #242526;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #e4e6eb;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #1877f2;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #166fe5;
+        }
+
+        .home-button {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid #404040;
+            transition: background-color 0.2s;
+        }
+
+        .home-button:hover {
+            background-color: #4e4f50;
+            text-decoration: none;
+        }
+
+        #results {
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .security-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: #3a3b3c;
+            border: 1px solid #404040;
+            border-radius: 6px;
+        }
+
+        .security-section h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #e4e6eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-pass {
+            background-color: #2e4a2f;
+            color: #6aba6e;
+        }
+
+        .status-fail {
+            background-color: #5a2a2a;
+            color: #ff8a80;
+        }
+
+        .status-warning {
+            background-color: #5a4a2a;
+            color: #ffb74d;
+        }
+
+        .status-info {
+            background-color: #2a4a5a;
+            color: #64b5f6;
+        }
+
+        .record-data {
+            background-color: #2a2b2c;
+            padding: 0.75rem;
+            border-radius: 4px;
+            border-left: 3px solid #1877f2;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin: 0.5rem 0;
+        }
+
+        .analysis-item {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background-color: #2a2b2c;
+            border-radius: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #8a8b8c;
+            font-style: italic;
+            padding: 2rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #404040;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #1877f2;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .summary {
+            background-color: #3a3b3c;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary h3 {
+            margin-top: 0;
+            color: #e4e6eb;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 1rem;
+            background-color: #2a2b2c;
+            border-radius: 4px;
+        }
+
+        .summary-score {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .score-excellent { color: #6aba6e; }
+        .score-good { color: #81c784; }
+        .score-warning { color: #ffb74d; }
+        .score-poor { color: #ff8a80; }
+
+        .mx-server {
+            background-color: #2a2b2c;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+            border-left: 3px solid #1877f2;
+        }
+
+        .cert-info {
+            background-color: #2a2b2c;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 3px solid #4caf50;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" class="home-button">← Home</a>
+    <div class="container">
+        <h1>Mail Security Checker</h1>
+        <div class="input-group">
+            <label for="domain">Domain Name</label>
+            <input type="text" id="domain" placeholder="e.g., example.com">
+        </div>
+        <button id="checkButton">Check Mail Security</button>
+        <div id="results"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const domainInput = document.getElementById('domain');
+            const checkButton = document.getElementById('checkButton');
+            const resultsDiv = document.getElementById('results');
+
+            const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
+
+            const checkDNS = async (domain, recordType) => {
+                try {
+                    const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${recordType}`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/dns-json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    return { Status: -1, error: error.message };
+                }
+            };
+
+            const analyzeSPF = (spfRecord) => {
+                const analysis = {
+                    status: 'fail',
+                    issues: [],
+                    mechanisms: [],
+                    score: 0
+                };
+
+                if (!spfRecord) {
+                    analysis.issues.push('No SPF record found');
+                    return analysis;
+                }
+
+                const spf = spfRecord.toLowerCase();
+                
+                // Check version
+                if (!spf.startsWith('v=spf1')) {
+                    analysis.issues.push('Invalid SPF version');
+                    return analysis;
+                }
+
+                analysis.score += 20; // Base score for having SPF
+
+                // Extract mechanisms
+                const mechanisms = spf.split(' ').filter(m => m.length > 0);
+                analysis.mechanisms = mechanisms;
+
+                // Check for common mechanisms
+                if (mechanisms.some(m => m.includes('include:'))) {
+                    analysis.score += 15;
+                }
+                if (mechanisms.some(m => m.startsWith('a') || m.startsWith('mx'))) {
+                    analysis.score += 10;
+                }
+                if (mechanisms.some(m => m.startsWith('ip4:') || m.startsWith('ip6:'))) {
+                    analysis.score += 10;
+                }
+
+                // Check for proper ending
+                const lastMech = mechanisms[mechanisms.length - 1];
+                if (lastMech === '~all' || lastMech === '-all') {
+                    analysis.score += 20;
+                    if (lastMech === '-all') {
+                        analysis.score += 10; // Strict policy
+                    }
+                } else if (lastMech === '+all') {
+                    analysis.issues.push('Permissive +all policy allows any server to send mail');
+                    analysis.score -= 20;
+                } else {
+                    analysis.issues.push('No explicit all mechanism found');
+                }
+
+                // Check for too many DNS lookups
+                const dnsLookups = mechanisms.filter(m => 
+                    m.startsWith('include:') || m.startsWith('a:') || m.startsWith('mx:') || 
+                    m.startsWith('exists:') || m.startsWith('redirect=')
+                ).length;
+                
+                if (dnsLookups > 10) {
+                    analysis.issues.push(`Too many DNS lookups (${dnsLookups}/10 max)`);
+                    analysis.score -= 15;
+                }
+
+                // Determine status
+                if (analysis.score >= 70) analysis.status = 'pass';
+                else if (analysis.score >= 50) analysis.status = 'warning';
+                else analysis.status = 'fail';
+
+                return analysis;
+            };
+
+            const analyzeDMARC = (dmarcRecord) => {
+                const analysis = {
+                    status: 'fail',
+                    issues: [],
+                    policy: null,
+                    score: 0
+                };
+
+                if (!dmarcRecord) {
+                    analysis.issues.push('No DMARC record found');
+                    return analysis;
+                }
+
+                const dmarc = dmarcRecord.toLowerCase();
+                
+                if (!dmarc.startsWith('v=dmarc1')) {
+                    analysis.issues.push('Invalid DMARC version');
+                    return analysis;
+                }
+
+                analysis.score += 30; // Base score for having DMARC
+
+                // Extract policy
+                const policyMatch = dmarc.match(/p=([^;]+)/);
+                if (policyMatch) {
+                    analysis.policy = policyMatch[1];
+                    if (analysis.policy === 'reject') {
+                        analysis.score += 30;
+                    } else if (analysis.policy === 'quarantine') {
+                        analysis.score += 20;
+                    } else if (analysis.policy === 'none') {
+                        analysis.score += 10;
+                        analysis.issues.push('Policy is set to "none" - no action taken on failures');
+                    }
+                }
+
+                // Check for reporting
+                if (dmarc.includes('rua=')) {
+                    analysis.score += 15;
+                }
+                if (dmarc.includes('ruf=')) {
+                    analysis.score += 10;
+                }
+
+                // Check percentage
+                const pctMatch = dmarc.match(/pct=(\d+)/);
+                if (pctMatch && parseInt(pctMatch[1]) < 100) {
+                    analysis.issues.push(`Policy applies to only ${pctMatch[1]}% of messages`);
+                }
+
+                // Determine status
+                if (analysis.score >= 70) analysis.status = 'pass';
+                else if (analysis.score >= 50) analysis.status = 'warning';
+                else analysis.status = 'fail';
+
+                return analysis;
+            };
+
+            const checkCertificate = async (hostname) => {
+                try {
+                    // We can't directly check certificates from browser due to CORS
+                    // But we can provide information about what should be checked
+                    return {
+                        status: 'info',
+                        message: 'Certificate check requires server-side validation',
+                        recommendations: [
+                            'Ensure TLS certificate is valid and not expired',
+                            'Use strong cipher suites (TLS 1.2+)',
+                            'Enable HSTS for mail servers',
+                            'Consider certificate transparency monitoring'
+                        ]
+                    };
+                } catch (error) {
+                    return {
+                        status: 'error',
+                        message: error.message
+                    };
+                }
+            };
+
+            const createSummary = (results, domain) => {
+                const summary = document.createElement('div');
+                summary.className = 'summary';
+
+                const title = document.createElement('h3');
+                title.textContent = `Mail Security Summary for ${domain}`;
+                summary.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'summary-grid';
+
+                // Calculate overall score
+                let totalScore = 0;
+                let maxScore = 0;
+
+                if (results.spf) {
+                    totalScore += results.spf.score;
+                    maxScore += 100;
+                }
+                if (results.dmarc) {
+                    totalScore += results.dmarc.score;
+                    maxScore += 100;
+                }
+                if (results.mx && results.mx.length > 0) {
+                    totalScore += 50; // Bonus for having MX records
+                    maxScore += 50;
+                }
+
+                const overallScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+                let scoreClass = 'score-poor';
+                if (overallScore >= 90) scoreClass = 'score-excellent';
+                else if (overallScore >= 75) scoreClass = 'score-good';
+                else if (overallScore >= 50) scoreClass = 'score-warning';
+
+                // Overall score
+                const overallItem = document.createElement('div');
+                overallItem.className = 'summary-item';
+                overallItem.innerHTML = `
+                    <div class="summary-score ${scoreClass}">${overallScore}%</div>
+                    <div>Overall Score</div>
+                `;
+                grid.appendChild(overallItem);
+
+                // Individual scores
+                if (results.spf) {
+                    const spfItem = document.createElement('div');
+                    spfItem.className = 'summary-item';
+                    const spfClass = results.spf.status === 'pass' ? 'score-excellent' : 
+                                   results.spf.status === 'warning' ? 'score-warning' : 'score-poor';
+                    spfItem.innerHTML = `
+                        <div class="summary-score ${spfClass}">${results.spf.score}%</div>
+                        <div>SPF Score</div>
+                    `;
+                    grid.appendChild(spfItem);
+                }
+
+                if (results.dmarc) {
+                    const dmarcItem = document.createElement('div');
+                    dmarcItem.className = 'summary-item';
+                    const dmarcClass = results.dmarc.status === 'pass' ? 'score-excellent' : 
+                                     results.dmarc.status === 'warning' ? 'score-warning' : 'score-poor';
+                    dmarcItem.innerHTML = `
+                        <div class="summary-score ${dmarcClass}">${results.dmarc.score}%</div>
+                        <div>DMARC Score</div>
+                    `;
+                    grid.appendChild(dmarcItem);
+                }
+
+                if (results.mx) {
+                    const mxItem = document.createElement('div');
+                    mxItem.className = 'summary-item';
+                    mxItem.innerHTML = `
+                        <div class="summary-score score-info">${results.mx.length}</div>
+                        <div>MX Records</div>
+                    `;
+                    grid.appendChild(mxItem);
+                }
+
+                summary.appendChild(grid);
+                return summary;
+            };
+
+            const updateProgress = (current, total) => {
+                const progressBar = document.querySelector('.progress-fill');
+                if (progressBar) {
+                    const percentage = (current / total) * 100;
+                    progressBar.style.width = `${percentage}%`;
+                }
+            };
+
+            checkButton.addEventListener('click', async () => {
+                const domain = domainInput.value.trim();
+
+                if (!domain) {
+                    resultsDiv.innerHTML = '<p class="status-fail">Please enter a domain name.</p>';
+                    return;
+                }
+
+                const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/;
+                if (!domainRegex.test(domain)) {
+                    resultsDiv.innerHTML = '<p class="status-fail">Please enter a valid domain name.</p>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <div class="loading">
+                        <p>Checking mail security for ${domain}...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                `;
+
+                try {
+                    const results = {};
+                    let step = 0;
+                    const totalSteps = 5;
+
+                    // Check MX records
+                    updateProgress(++step, totalSteps);
+                    const mxData = await checkDNS(domain, 'MX');
+                    results.mx = mxData.Answer || [];
+
+                    // Check SPF record
+                    updateProgress(++step, totalSteps);
+                    const txtData = await checkDNS(domain, 'TXT');
+                    const spfRecord = txtData.Answer?.find(record => 
+                        record.data.toLowerCase().startsWith('v=spf1')
+                    );
+                    results.spf = analyzeSPF(spfRecord?.data);
+
+                    // Check DMARC record
+                    updateProgress(++step, totalSteps);
+                    const dmarcData = await checkDNS(`_dmarc.${domain}`, 'TXT');
+                    const dmarcRecord = dmarcData.Answer?.find(record => 
+                        record.data.toLowerCase().startsWith('v=dmarc1')
+                    );
+                    results.dmarc = analyzeDMARC(dmarcRecord?.data);
+
+                    // Check DKIM (common selectors)
+                    updateProgress(++step, totalSteps);
+                    const dkimSelectors = ['default', 'selector1', 'selector2', 'google', 'k1'];
+                    results.dkim = [];
+                    for (const selector of dkimSelectors) {
+                        const dkimData = await checkDNS(`${selector}._domainkey.${domain}`, 'TXT');
+                        if (dkimData.Answer && dkimData.Answer.length > 0) {
+                            results.dkim.push({ selector, record: dkimData.Answer[0].data });
+                        }
+                    }
+
+                    // Certificate info
+                    updateProgress(++step, totalSteps);
+                    results.certificate = await checkCertificate(domain);
+
+                    // Clear loading and show results
+                    resultsDiv.innerHTML = '';
+
+                    // Add summary
+                    const summary = createSummary(results, domain);
+                    resultsDiv.appendChild(summary);
+
+                    // MX Records Section
+                    const mxSection = document.createElement('div');
+                    mxSection.className = 'security-section';
+                    mxSection.innerHTML = `
+                        <h3>MX Records <span class="status-badge ${results.mx.length > 0 ? 'status-pass' : 'status-fail'}">${results.mx.length > 0 ? 'FOUND' : 'MISSING'}</span></h3>
+                    `;
+                    
+                    if (results.mx.length > 0) {
+                        results.mx.forEach(mx => {
+                            const mxDiv = document.createElement('div');
+                            mxDiv.className = 'mx-server';
+                            mxDiv.innerHTML = `
+                                <strong>Server:</strong> ${mx.data}<br>
+                                <strong>Priority:</strong> ${mx.priority || 'N/A'}<br>
+                                <strong>TTL:</strong> ${mx.TTL}s
+                            `;
+                            mxSection.appendChild(mxDiv);
+                        });
+                    } else {
+                        mxSection.innerHTML += '<div class="analysis-item">No MX records found. Domain cannot receive email.</div>';
+                    }
+                    resultsDiv.appendChild(mxSection);
+
+                    // SPF Section
+                    const spfSection = document.createElement('div');
+                    spfSection.className = 'security-section';
+                    spfSection.innerHTML = `
+                        <h3>SPF (Sender Policy Framework) <span class="status-badge status-${results.spf.status}">${results.spf.status.toUpperCase()}</span></h3>
+                    `;
+                    
+                    if (spfRecord) {
+                        spfSection.innerHTML += `<div class="record-data">${spfRecord.data}</div>`;
+                        spfSection.innerHTML += `<div class="analysis-item"><strong>Mechanisms:</strong> ${results.spf.mechanisms.join(', ')}</div>`;
+                    }
+                    
+                    if (results.spf.issues.length > 0) {
+                        results.spf.issues.forEach(issue => {
+                            spfSection.innerHTML += `<div class="analysis-item">⚠️ ${issue}</div>`;
+                        });
+                    }
+                    resultsDiv.appendChild(spfSection);
+
+                    // DMARC Section
+                    const dmarcSection = document.createElement('div');
+                    dmarcSection.className = 'security-section';
+                    dmarcSection.innerHTML = `
+                        <h3>DMARC (Domain-based Message Authentication) <span class="status-badge status-${results.dmarc.status}">${results.dmarc.status.toUpperCase()}</span></h3>
+                    `;
+                    
+                    if (dmarcRecord) {
+                        dmarcSection.innerHTML += `<div class="record-data">${dmarcRecord.data}</div>`;
+                        if (results.dmarc.policy) {
+                            dmarcSection.innerHTML += `<div class="analysis-item"><strong>Policy:</strong> ${results.dmarc.policy}</div>`;
+                        }
+                    }
+                    
+                    if (results.dmarc.issues.length > 0) {
+                        results.dmarc.issues.forEach(issue => {
+                            dmarcSection.innerHTML += `<div class="analysis-item">⚠️ ${issue}</div>`;
+                        });
+                    }
+                    resultsDiv.appendChild(dmarcSection);
+
+                    // DKIM Section
+                    const dkimSection = document.createElement('div');
+                    dkimSection.className = 'security-section';
+                    dkimSection.innerHTML = `
+                        <h3>DKIM (DomainKeys Identified Mail) <span class="status-badge ${results.dkim.length > 0 ? 'status-pass' : 'status-warning'}">${results.dkim.length > 0 ? 'FOUND' : 'NOT FOUND'}</span></h3>
+                    `;
+                    
+                    if (results.dkim.length > 0) {
+                        results.dkim.forEach(dkim => {
+                            dkimSection.innerHTML += `
+                                <div class="analysis-item">
+                                    <strong>Selector:</strong> ${dkim.selector}<br>
+                                    <div class="record-data">${dkim.record}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        dkimSection.innerHTML += '<div class="analysis-item">No DKIM records found with common selectors. Check with your email provider for the correct selector.</div>';
+                    }
+                    resultsDiv.appendChild(dkimSection);
+
+                    // Certificate Section
+                    const certSection = document.createElement('div');
+                    certSection.className = 'security-section';
+                    certSection.innerHTML = `
+                        <h3>TLS Certificate <span class="status-badge status-info">INFO</span></h3>
+                        <div class="cert-info">
+                            <strong>Note:</strong> ${results.certificate.message}
+                        </div>
+                    `;
+                    
+                    if (results.certificate.recommendations) {
+                        certSection.innerHTML += '<div class="analysis-item"><strong>Recommendations:</strong></div>';
+                        results.certificate.recommendations.forEach(rec => {
+                            certSection.innerHTML += `<div class="analysis-item">• ${rec}</div>`;
+                        });
+                    }
+                    resultsDiv.appendChild(certSection);
+
+                } catch (error) {
+                    resultsDiv.innerHTML = `<p class="status-fail">Error: ${error.message}</p>`;
+                }
+            });
+
+            domainInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    checkButton.click();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
