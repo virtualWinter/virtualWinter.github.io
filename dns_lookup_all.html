@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete DNS Lookup</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #18191a;
+            color: #e4e6eb;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            background-color: #242526;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #e4e6eb;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #1877f2;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #166fe5;
+        }
+
+        .home-button {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #3a3b3c;
+            color: #e4e6eb;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid #404040;
+            transition: background-color 0.2s;
+        }
+
+        .home-button:hover {
+            background-color: #4e4f50;
+            text-decoration: none;
+        }
+
+        #results {
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .record-type-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: #3a3b3c;
+            border: 1px solid #404040;
+            border-radius: 6px;
+        }
+
+        .record-type-section h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #e4e6eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .record-count {
+            background-color: #1877f2;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .record-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .record-list li {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background-color: #2a2b2c;
+            border-radius: 4px;
+            border-left: 3px solid #1877f2;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9rem;
+        }
+
+        .record-data {
+            word-break: break-all;
+            margin-top: 0.25rem;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status-success {
+            background-color: #2e4a2f;
+            color: #6aba6e;
+        }
+
+        .status-error {
+            background-color: #5a2a2a;
+            color: #ff8a80;
+        }
+
+        .status-warning {
+            background-color: #5a4a2a;
+            color: #ffb74d;
+        }
+
+        .loading {
+            text-align: center;
+            color: #8a8b8c;
+            font-style: italic;
+            padding: 2rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #404040;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #1877f2;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .no-records {
+            color: #8a8b8c;
+            font-style: italic;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .summary {
+            background-color: #3a3b3c;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary h3 {
+            margin-top: 0;
+            color: #e4e6eb;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 0.5rem;
+            background-color: #2a2b2c;
+            border-radius: 4px;
+        }
+
+        .summary-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1877f2;
+        }
+
+        .summary-label {
+            font-size: 0.8rem;
+            color: #8a8b8c;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" class="home-button">← Home</a>
+    <div class="container">
+        <h1>Complete DNS Lookup</h1>
+        <div class="input-group">
+            <label for="domain">Domain Name</label>
+            <input type="text" id="domain" placeholder="e.g., example.com">
+        </div>
+        <button id="lookupButton">Lookup All DNS Records</button>
+        <div id="results"></div>
+    </div>    <scrip
+t>
+        document.addEventListener('DOMContentLoaded', () => {
+            const domainInput = document.getElementById('domain');
+            const lookupButton = document.getElementById('lookupButton');
+            const resultsDiv = document.getElementById('results');
+
+            // DNS over HTTPS resolver
+            const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
+
+            // Common DNS record types to check
+            const RECORD_TYPES = [
+                { type: 'A', name: 'A Records (IPv4)' },
+                { type: 'AAAA', name: 'AAAA Records (IPv6)' },
+                { type: 'CNAME', name: 'CNAME Records' },
+                { type: 'MX', name: 'MX Records (Mail)' },
+                { type: 'TXT', name: 'TXT Records' },
+                { type: 'NS', name: 'NS Records (Name Servers)' },
+                { type: 'SOA', name: 'SOA Record (Authority)' },
+                { type: 'PTR', name: 'PTR Records (Reverse)' },
+                { type: 'SRV', name: 'SRV Records (Services)' },
+                { type: 'CAA', name: 'CAA Records (Certificate Authority)' }
+            ];
+
+            const checkDNS = async (domain, recordType) => {
+                try {
+                    const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${recordType}`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/dns-json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    return { Status: -1, error: error.message };
+                }
+            };
+
+            const formatRecordData = (record, recordType) => {
+                switch (recordType) {
+                    case 'A':
+                    case 'AAAA':
+                        return record.data;
+                    case 'CNAME':
+                        return record.data;
+                    case 'MX':
+                        return `${record.data} (Priority: ${record.priority || 'N/A'})`;
+                    case 'TXT':
+                        return `"${record.data}"`;
+                    case 'NS':
+                        return record.data;
+                    case 'SOA':
+                        return record.data;
+                    case 'PTR':
+                        return record.data;
+                    case 'SRV':
+                        return `${record.data} (Priority: ${record.priority || 'N/A'}, Weight: ${record.weight || 'N/A'}, Port: ${record.port || 'N/A'})`;
+                    case 'CAA':
+                        return record.data;
+                    default:
+                        return record.data;
+                }
+            };
+
+            const createRecordSection = (recordTypeInfo, data) => {
+                const section = document.createElement('div');
+                section.className = 'record-type-section';
+
+                const header = document.createElement('h3');
+                header.innerHTML = `${recordTypeInfo.name} <span class="record-count">${data.Answer ? data.Answer.length : 0}</span>`;
+                section.appendChild(header);
+
+                if (data.Status !== 0 || !data.Answer || data.Answer.length === 0) {
+                    const noRecords = document.createElement('div');
+                    noRecords.className = 'no-records';
+                    noRecords.textContent = data.error ? `Error: ${data.error}` : `No ${recordTypeInfo.type} records found`;
+                    section.appendChild(noRecords);
+                    return section;
+                }
+
+                const recordList = document.createElement('ul');
+                recordList.className = 'record-list';
+
+                data.Answer.forEach(record => {
+                    const listItem = document.createElement('li');
+                    const formattedData = formatRecordData(record, recordTypeInfo.type);
+                    
+                    listItem.innerHTML = `
+                        <div><strong>Name:</strong> ${record.name}</div>
+                        <div><strong>TTL:</strong> ${record.TTL}s</div>
+                        <div class="record-data"><strong>Data:</strong> ${formattedData}</div>
+                    `;
+                    recordList.appendChild(listItem);
+                });
+
+                section.appendChild(recordList);
+                return section;
+            };
+
+            const createSummary = (results, domain) => {
+                const summary = document.createElement('div');
+                summary.className = 'summary';
+
+                const title = document.createElement('h3');
+                title.textContent = `DNS Summary for ${domain}`;
+                summary.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'summary-grid';
+
+                let totalRecords = 0;
+                const recordCounts = {};
+
+                results.forEach((result, index) => {
+                    const recordType = RECORD_TYPES[index];
+                    const count = (result.data.Answer && result.data.Status === 0) ? result.data.Answer.length : 0;
+                    recordCounts[recordType.type] = count;
+                    totalRecords += count;
+                });
+
+                // Total records
+                const totalItem = document.createElement('div');
+                totalItem.className = 'summary-item';
+                totalItem.innerHTML = `
+                    <div class="summary-count">${totalRecords}</div>
+                    <div class="summary-label">Total Records</div>
+                `;
+                grid.appendChild(totalItem);
+
+                // Individual record type counts
+                Object.entries(recordCounts).forEach(([type, count]) => {
+                    if (count > 0) {
+                        const item = document.createElement('div');
+                        item.className = 'summary-item';
+                        item.innerHTML = `
+                            <div class="summary-count">${count}</div>
+                            <div class="summary-label">${type}</div>
+                        `;
+                        grid.appendChild(item);
+                    }
+                });
+
+                summary.appendChild(grid);
+                return summary;
+            };
+
+            const updateProgress = (current, total) => {
+                const progressBar = document.querySelector('.progress-fill');
+                if (progressBar) {
+                    const percentage = (current / total) * 100;
+                    progressBar.style.width = `${percentage}%`;
+                }
+            };
+
+            lookupButton.addEventListener('click', async () => {
+                const domain = domainInput.value.trim();
+
+                if (!domain) {
+                    resultsDiv.innerHTML = '<p class="status status-error">Please enter a domain name.</p>';
+                    return;
+                }
+
+                // Basic domain validation
+                const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/;
+                if (!domainRegex.test(domain)) {
+                    resultsDiv.innerHTML = '<p class="status status-error">Please enter a valid domain name.</p>';
+                    return;
+                }
+
+                // Show loading state with progress bar
+                resultsDiv.innerHTML = `
+                    <div class="loading">
+                        <p>Looking up all DNS records for ${domain}...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <p>Checking ${RECORD_TYPES.length} record types...</p>
+                    </div>
+                `;
+
+                try {
+                    const results = [];
+                    
+                    // Query all record types
+                    for (let i = 0; i < RECORD_TYPES.length; i++) {
+                        const recordType = RECORD_TYPES[i];
+                        updateProgress(i, RECORD_TYPES.length);
+                        
+                        const data = await checkDNS(domain, recordType.type);
+                        results.push({ recordType, data });
+                        
+                        // Small delay to prevent overwhelming the DNS server
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    updateProgress(RECORD_TYPES.length, RECORD_TYPES.length);
+
+                    // Clear loading state
+                    resultsDiv.innerHTML = '';
+
+                    // Add summary
+                    const summary = createSummary(results, domain);
+                    resultsDiv.appendChild(summary);
+
+                    // Add individual record sections
+                    results.forEach(result => {
+                        const section = createRecordSection(result.recordType, result.data);
+                        resultsDiv.appendChild(section);
+                    });
+
+                } catch (error) {
+                    resultsDiv.innerHTML = `<p class="status status-error">Error: ${error.message}</p>`;
+                }
+            });
+
+            // Allow Enter key to trigger lookup
+            domainInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    lookupButton.click();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
