@@ -211,177 +211,174 @@
         <button id="checkButton">Check DNS Records</button>
         <div id="results"></div>
     </div>
-    <sc ript>
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
-        const domainInput = document.getElementById('domain');
-        const recordTypeSelect = document.getElementById('recordType');
-        const checkButton = document.getElementById('checkButton');
-        const resultsDiv = document.getElementById('results');
+            const domainInput = document.getElementById('domain');
+            const recordTypeSelect = document.getElementById('recordType');
+            const checkButton = document.getElementById('checkButton');
+            const resultsDiv = document.getElementById('results');
 
-        // DNS over HTTPS resolver (using Cloudflare's public resolver)
-        const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
+            // DNS over HTTPS resolver (using Cloudflare's public resolver)
+            const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
 
-        const checkDNS = async (domain, recordType) => {
-        try {
-        const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${recordType}`;
+            const checkDNS = async (domain, recordType) => {
+                try {
+                    const url = `${DOH_ENDPOINT}?name=${encodeURIComponent(domain)}&type=${recordType}`;
 
-        const response = await fetch(url, {
-        headers: {
-        'Accept': 'application/dns-json'
-        }
-        });
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/dns-json'
+                        }
+                    });
 
-        if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
 
-        const data = await response.json();
-        return data;
-        } catch (error) {
-        throw new Error(`DNS query failed: ${error.message}`);
-        }
-        };
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    throw new Error(`DNS query failed: ${error.message}`);
+                }
+            };
 
-        const formatRecordData = (record, recordType) => {
-        switch (recordType) {
-        case 'A':
-        case 'AAAA':
-        return record.data;
-        case 'CNAME':
-        return record.data;
-        case 'MX':
-        return `${record.data} (Priority: ${record.priority || 'N/A'})`;
-        case 'TXT':
-        return `"${record.data}"`;
-        case 'NS':
-        return record.data;
-        case 'SOA':
-        return record.data;
-        case 'PTR':
-        return record.data;
-        default:
-        return record.data;
-        }
-        };
+            const formatRecordData = (record, recordType) => {
+                switch (recordType) {
+                    case 'A':
+                    case 'AAAA':
+                        return record.data;
+                    case 'CNAME':
+                        return record.data;
+                    case 'MX':
+                        return `${record.data} (Priority: ${record.priority || 'N/A'})`;
+                    case 'TXT':
+                        return `"${record.data}"`;
+                    case 'NS':
+                        return record.data;
+                    case 'SOA':
+                        return record.data;
+                    case 'PTR':
+                        return record.data;
+                    default:
+                        return record.data;
+                }
+            };
 
-        const displayResults = (data, domain, recordType) => {
-        let outputHTML = '';
+            const displayResults = (data, domain, recordType) => {
+                let outputHTML = '';
 
-        // Query information
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<h4>Query Information</h4>`;
-            outputHTML += `<p><strong>Domain:</strong> ${domain}<br>`;
+                // Query information
+                outputHTML += `<div class="results-section">`;
+                outputHTML += `<h4>Query Information</h4>`;
+                outputHTML += `<p><strong>Domain:</strong> ${domain}<br>`;
                 outputHTML += `<strong>Record Type:</strong> ${recordType}<br>`;
                 outputHTML += `<strong>Status:</strong> ${data.Status === 0 ? 'Success' : 'Error'}</p>`;
-            outputHTML += `</div>`;
+                outputHTML += `</div>`;
 
-        if (data.Status !== 0) {
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<p class="status status-error">DNS query failed with status code: ${data.Status}</p>`;
-            outputHTML += `</div>`;
-        return outputHTML;
-        }
+                if (data.Status !== 0) {
+                    outputHTML += `<div class="results-section">`;
+                    outputHTML += `<p class="status status-error">DNS query failed with status code: ${data.Status}</p>`;
+                    outputHTML += `</div>`;
+                    return outputHTML;
+                }
 
-        // Answer section
-        if (data.Answer && data.Answer.length > 0) {
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<h4>Answer Records (${data.Answer.length})</h4>`;
-            outputHTML += `<ul class="record-list">`;
+                // Answer section
+                if (data.Answer && data.Answer.length > 0) {
+                    outputHTML += `<div class="results-section">`;
+                    outputHTML += `<h4>Answer Records (${data.Answer.length})</h4>`;
+                    outputHTML += `<ul class="record-list">`;
 
-                data.Answer.forEach(record => {
-                const formattedData = formatRecordData(record, recordType);
-                outputHTML += `<li>`;
-                    outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
-                    outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
-                    outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
-                    outputHTML += `<strong>Data:</strong> ${formattedData}`;
-                    outputHTML += `</li>`;
-                });
+                    data.Answer.forEach(record => {
+                        const formattedData = formatRecordData(record, recordType);
+                        outputHTML += `<li>`;
+                        outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
+                        outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
+                        outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
+                        outputHTML += `<strong>Data:</strong> ${formattedData}`;
+                        outputHTML += `</li>`;
+                    });
 
-                outputHTML += `</ul>
-        </div>`;
-        } else {
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<p class="status status-warning">No ${recordType} records found for ${domain}</p>`;
-            outputHTML += `</div>`;
-        }
+                    outputHTML += `</ul></div>`;
+                } else {
+                    outputHTML += `<div class="results-section">`;
+                    outputHTML += `<p class="status status-warning">No ${recordType} records found for ${domain}</p>`;
+                    outputHTML += `</div>`;
+                }
 
-        // Authority section
-        if (data.Authority && data.Authority.length > 0) {
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<h4>Authority Records (${data.Authority.length})</h4>`;
-            outputHTML += `<ul class="record-list">`;
+                // Authority section
+                if (data.Authority && data.Authority.length > 0) {
+                    outputHTML += `<div class="results-section">`;
+                    outputHTML += `<h4>Authority Records (${data.Authority.length})</h4>`;
+                    outputHTML += `<ul class="record-list">`;
 
-                data.Authority.forEach(record => {
-                outputHTML += `<li>`;
-                    outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
-                    outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
-                    outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
-                    outputHTML += `<strong>Data:</strong> ${record.data}`;
-                    outputHTML += `</li>`;
-                });
+                    data.Authority.forEach(record => {
+                        outputHTML += `<li>`;
+                        outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
+                        outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
+                        outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
+                        outputHTML += `<strong>Data:</strong> ${record.data}`;
+                        outputHTML += `</li>`;
+                    });
 
-                outputHTML += `</ul>
-        </div>`;
-        }
+                    outputHTML += `</ul></div>`;
+                }
 
-        // Additional section
-        if (data.Additional && data.Additional.length > 0) {
-        outputHTML += `<div class="results-section">`;
-            outputHTML += `<h4>Additional Records (${data.Additional.length})</h4>`;
-            outputHTML += `<ul class="record-list">`;
+                // Additional section
+                if (data.Additional && data.Additional.length > 0) {
+                    outputHTML += `<div class="results-section">`;
+                    outputHTML += `<h4>Additional Records (${data.Additional.length})</h4>`;
+                    outputHTML += `<ul class="record-list">`;
 
-                data.Additional.forEach(record => {
-                outputHTML += `<li>`;
-                    outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
-                    outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
-                    outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
-                    outputHTML += `<strong>Data:</strong> ${record.data}`;
-                    outputHTML += `</li>`;
-                });
+                    data.Additional.forEach(record => {
+                        outputHTML += `<li>`;
+                        outputHTML += `<strong>Name:</strong> ${record.name}<br>`;
+                        outputHTML += `<strong>Type:</strong> ${record.type}<br>`;
+                        outputHTML += `<strong>TTL:</strong> ${record.TTL}s<br>`;
+                        outputHTML += `<strong>Data:</strong> ${record.data}`;
+                        outputHTML += `</li>`;
+                    });
 
-                outputHTML += `</ul>
-        </div>`;
-        }
+                    outputHTML += `</ul></div>`;
+                }
 
-        return outputHTML;
-        };
+                return outputHTML;
+            };
 
-        checkButton.addEventListener('click', async () => {
-        const domain = domainInput.value.trim();
-        const recordType = recordTypeSelect.value;
+            checkButton.addEventListener('click', async () => {
+                const domain = domainInput.value.trim();
+                const recordType = recordTypeSelect.value;
 
-        if (!domain) {
-        resultsDiv.innerHTML = '<p class="status status-error">Please enter a domain name.</p>';
-        return;
-        }
+                if (!domain) {
+                    resultsDiv.innerHTML = '<p class="status status-error">Please enter a domain name.</p>';
+                    return;
+                }
 
-        // Basic domain validation
-        const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/;
-        if (!domainRegex.test(domain)) {
-        resultsDiv.innerHTML = '<p class="status status-error">Please enter a valid domain name.</p>';
-        return;
-        }
+                // Basic domain validation
+                const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/;
+                if (!domainRegex.test(domain)) {
+                    resultsDiv.innerHTML = '<p class="status status-error">Please enter a valid domain name.</p>';
+                    return;
+                }
 
-        resultsDiv.innerHTML = '<p class="loading">Checking DNS records...</p>';
+                resultsDiv.innerHTML = '<p class="loading">Checking DNS records...</p>';
 
-        try {
-        const data = await checkDNS(domain, recordType);
-        const outputHTML = displayResults(data, domain, recordType);
-        resultsDiv.innerHTML = outputHTML;
-        } catch (error) {
-        resultsDiv.innerHTML = `<p class="status status-error">Error: ${error.message}</p>`;
-        }
+                try {
+                    const data = await checkDNS(domain, recordType);
+                    const outputHTML = displayResults(data, domain, recordType);
+                    resultsDiv.innerHTML = outputHTML;
+                } catch (error) {
+                    resultsDiv.innerHTML = `<p class="status status-error">Error: ${error.message}</p>`;
+                }
+            });
+
+            // Allow Enter key to trigger check
+            domainInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    checkButton.click();
+                }
+            });
         });
-
-        // Allow Enter key to trigger check
-        domainInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-        checkButton.click();
-        }
-        });
-        });
-        </script>
+    </script>
 </body>
 
 </html>
