@@ -633,11 +633,11 @@
                     // HTTP GET Test
                     if (port === 80 || port === 8000 || port === 8008 || port === 8080 || port === 8081 || port === 8082 || port === 8888 || port === 9000 || port === 9090 || port === 3000 || port === 5000 || port === 4200) {
                         tests.push({
-                            name: 'HTTP-GET',
+                            name: 'HTTP-Service-Detection',
                             protocol: 'TCP',
                             test: () => {
                                 const controller = new AbortController();
-                                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                                const timeoutId = setTimeout(() => controller.abort(), 3000);
 
                                 return fetch(`http://${host}:${port}/`, {
                                     method: 'GET',
@@ -645,28 +645,65 @@
                                     signal: controller.signal,
                                     cache: 'no-cache',
                                     headers: { 'User-Agent': 'NetworkConnectivityTester/1.0' }
-                                }).then((response) => {
+                                }).then(async (response) => {
                                     clearTimeout(timeoutId);
+
+                                    // Try to detect service type from headers and response
+                                    let serviceInfo = 'HTTP Service';
+                                    let serverHeader = '';
+
+                                    try {
+                                        // Try to get server header (may be blocked by CORS)
+                                        serverHeader = response.headers.get('Server') || '';
+                                        if (serverHeader) {
+                                            if (serverHeader.includes('nginx')) serviceInfo = 'Nginx Web Server';
+                                            else if (serverHeader.includes('Apache')) serviceInfo = 'Apache Web Server';
+                                            else if (serverHeader.includes('IIS')) serviceInfo = 'Microsoft IIS';
+                                            else if (serverHeader.includes('Express')) serviceInfo = 'Express.js Server';
+                                            else if (serverHeader.includes('Kestrel')) serviceInfo = 'ASP.NET Core Kestrel';
+                                            else if (serverHeader.includes('Tomcat')) serviceInfo = 'Apache Tomcat';
+                                            else if (serverHeader.includes('Jetty')) serviceInfo = 'Eclipse Jetty';
+                                            else serviceInfo = `HTTP Server (${serverHeader})`;
+                                        }
+                                    } catch (e) {
+                                        // Headers blocked by CORS, try to infer from port and response
+                                        if (port === 3000) serviceInfo = 'Development Server (likely Node.js/React)';
+                                        else if (port === 4200) serviceInfo = 'Development Server (likely Angular)';
+                                        else if (port === 5000) serviceInfo = 'Development Server (likely Flask/Python)';
+                                        else if (port === 8080) serviceInfo = 'HTTP Proxy or Tomcat';
+                                        else if (port === 9000) serviceInfo = 'HTTP Service or Play Framework';
+                                        else if (port === 8888) serviceInfo = 'HTTP Service (possibly Jupyter)';
+                                    }
+
                                     return {
                                         success: true,
                                         protocol: 'TCP',
-                                        method: 'HTTP-GET',
-                                        details: `TCP connection successful via HTTP GET (status: ${response.status || 'opaque'})`
+                                        method: 'HTTP-Service-Detection',
+                                        service: serviceInfo,
+                                        details: `${serviceInfo} detected on TCP port ${port} (HTTP status: ${response.status || 'opaque'})`
                                     };
                                 }).catch((error) => {
                                     clearTimeout(timeoutId);
                                     if (error.name === 'AbortError') {
-                                        return { success: false, protocol: 'TCP', method: 'HTTP-GET', details: 'TCP connection timeout' };
+                                        return { success: false, protocol: 'TCP', method: 'HTTP-Service-Detection', details: 'TCP connection timeout' };
                                     }
                                     if (error.message.includes('CORS') || error.message.includes('network')) {
+                                        // Service is running but CORS is blocking us
+                                        let serviceInfo = 'HTTP Service (CORS protected)';
+                                        if (port === 3000) serviceInfo = 'Development Server (likely Node.js/React, CORS protected)';
+                                        else if (port === 4200) serviceInfo = 'Development Server (likely Angular, CORS protected)';
+                                        else if (port === 5000) serviceInfo = 'Development Server (likely Flask/Python, CORS protected)';
+                                        else if (port === 8080) serviceInfo = 'HTTP Proxy/Tomcat (CORS protected)';
+
                                         return {
                                             success: true,
                                             protocol: 'TCP',
-                                            method: 'HTTP-GET',
-                                            details: 'TCP connection successful (CORS blocked, but service accessible)'
+                                            method: 'HTTP-Service-Detection',
+                                            service: serviceInfo,
+                                            details: `${serviceInfo} detected on TCP port ${port}`
                                         };
                                     }
-                                    return { success: false, protocol: 'TCP', method: 'HTTP-GET', details: `TCP connection failed: ${error.message}` };
+                                    return { success: false, protocol: 'TCP', method: 'HTTP-Service-Detection', details: `TCP connection failed: ${error.message}` };
                                 });
                             }
                         });
@@ -719,11 +756,11 @@
                     // HTTPS GET Test
                     if (port === 443 || port === 8443 || port === 8000 || port === 3000 || port === 5000 || port === 4200 || port === 9000) {
                         tests.push({
-                            name: 'HTTPS-GET',
+                            name: 'HTTPS-Service-Detection',
                             protocol: 'TCP+TLS',
                             test: () => {
                                 const controller = new AbortController();
-                                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                                const timeoutId = setTimeout(() => controller.abort(), 3000);
 
                                 return fetch(`https://${host}:${port}/`, {
                                     method: 'GET',
@@ -731,28 +768,60 @@
                                     signal: controller.signal,
                                     cache: 'no-cache',
                                     headers: { 'User-Agent': 'NetworkConnectivityTester/1.0' }
-                                }).then((response) => {
+                                }).then(async (response) => {
                                     clearTimeout(timeoutId);
+
+                                    // Try to detect HTTPS service type
+                                    let serviceInfo = 'HTTPS Service';
+                                    let serverHeader = '';
+
+                                    try {
+                                        serverHeader = response.headers.get('Server') || '';
+                                        if (serverHeader) {
+                                            if (serverHeader.includes('nginx')) serviceInfo = 'Nginx HTTPS Server';
+                                            else if (serverHeader.includes('Apache')) serviceInfo = 'Apache HTTPS Server';
+                                            else if (serverHeader.includes('IIS')) serviceInfo = 'Microsoft IIS HTTPS';
+                                            else if (serverHeader.includes('Express')) serviceInfo = 'Express.js HTTPS Server';
+                                            else if (serverHeader.includes('Kestrel')) serviceInfo = 'ASP.NET Core Kestrel HTTPS';
+                                            else if (serverHeader.includes('Tomcat')) serviceInfo = 'Apache Tomcat HTTPS';
+                                            else if (serverHeader.includes('Jetty')) serviceInfo = 'Eclipse Jetty HTTPS';
+                                            else serviceInfo = `HTTPS Server (${serverHeader})`;
+                                        }
+                                    } catch (e) {
+                                        // Infer from port
+                                        if (port === 443) serviceInfo = 'HTTPS Web Server (standard port)';
+                                        else if (port === 8443) serviceInfo = 'HTTPS Web Server (alternate port)';
+                                        else if (port === 3000) serviceInfo = 'Development HTTPS Server (likely Node.js/React)';
+                                        else if (port === 4200) serviceInfo = 'Development HTTPS Server (likely Angular)';
+                                        else if (port === 5000) serviceInfo = 'Development HTTPS Server (likely Flask/Python)';
+                                    }
+
                                     return {
                                         success: true,
                                         protocol: 'TCP+TLS',
-                                        method: 'HTTPS-GET',
-                                        details: `TCP+TLS connection successful via HTTPS GET (status: ${response.status || 'opaque'})`
+                                        method: 'HTTPS-Service-Detection',
+                                        service: serviceInfo,
+                                        details: `${serviceInfo} detected on TCP+TLS port ${port} (HTTPS status: ${response.status || 'opaque'})`
                                     };
                                 }).catch((error) => {
                                     clearTimeout(timeoutId);
                                     if (error.name === 'AbortError') {
-                                        return { success: false, protocol: 'TCP+TLS', method: 'HTTPS-GET', details: 'TCP+TLS connection timeout' };
+                                        return { success: false, protocol: 'TCP+TLS', method: 'HTTPS-Service-Detection', details: 'TCP+TLS connection timeout' };
                                     }
                                     if (error.message.includes('CORS') || error.message.includes('network')) {
+                                        let serviceInfo = 'HTTPS Service (CORS protected)';
+                                        if (port === 443) serviceInfo = 'HTTPS Web Server (standard port, CORS protected)';
+                                        else if (port === 8443) serviceInfo = 'HTTPS Web Server (alternate port, CORS protected)';
+
                                         return {
                                             success: true,
                                             protocol: 'TCP+TLS',
-                                            method: 'HTTPS-GET',
-                                            details: 'TCP+TLS connection successful (CORS blocked, but service accessible)'
+                                            method: 'HTTPS-Service-Detection',
+                                            service: serviceInfo,
+                                            details: `${serviceInfo} detected on TCP+TLS port ${port}`
                                         };
                                     }
-                                    return { success: false, protocol: 'TCP+TLS', method: 'HTTPS-GET', details: `TCP+TLS connection failed: ${error.message}` };
+                                    return { success: false, protocol: 'TCP+TLS', method: 'HTTPS-Service-Detection', details: `TCP+TLS connection failed: ${error.message}` };
                                 });
                             }
                         });
@@ -804,7 +873,7 @@
 
                     // WebSocket Test (TCP-based)
                     tests.push({
-                        name: 'WebSocket',
+                        name: 'Service-Detection',
                         protocol: 'TCP',
                         test: () => {
                             return new Promise((wsResolve) => {
@@ -830,11 +899,20 @@
                                             resolved = true;
                                             clearTimeout(timeoutId);
                                             ws.close();
+
+                                            // Detect service based on port
+                                            let serviceInfo = 'WebSocket Service';
+                                            if (port === 80 || port === 8080) serviceInfo = 'WebSocket over HTTP port';
+                                            else if (port === 443 || port === 8443) serviceInfo = 'WebSocket over HTTPS port';
+                                            else if (port === 3000) serviceInfo = 'WebSocket Development Server';
+                                            else if (port === 9000) serviceInfo = 'WebSocket Application Server';
+
                                             wsResolve({
                                                 success: true,
                                                 protocol: 'TCP',
-                                                method: 'WebSocket',
-                                                details: 'TCP connection successful via WebSocket protocol'
+                                                method: 'Service-Detection',
+                                                service: serviceInfo,
+                                                details: `${serviceInfo} detected on TCP port ${port}`
                                             });
                                         }
                                     };
@@ -859,17 +937,52 @@
                                             clearTimeout(timeoutId);
                                             const responseTime = Date.now() - startTime;
                                             if (responseTime < 200 && event.code === 1006) {
+                                                // Service is running but doesn't speak WebSocket
+                                                let serviceInfo = 'Unknown TCP Service';
+
+                                                // Try to identify service by port
+                                                if (port === 22) serviceInfo = 'SSH Server';
+                                                else if (port === 23) serviceInfo = 'Telnet Server';
+                                                else if (port === 25) serviceInfo = 'SMTP Mail Server';
+                                                else if (port === 53) serviceInfo = 'DNS Server';
+                                                else if (port === 110) serviceInfo = 'POP3 Mail Server';
+                                                else if (port === 143) serviceInfo = 'IMAP Mail Server';
+                                                else if (port === 993) serviceInfo = 'IMAPS Mail Server';
+                                                else if (port === 995) serviceInfo = 'POP3S Mail Server';
+                                                else if (port === 587) serviceInfo = 'SMTP Submission Server';
+                                                else if (port === 465) serviceInfo = 'SMTPS Mail Server';
+                                                else if (port === 21) serviceInfo = 'FTP Server';
+                                                else if (port === 3389) serviceInfo = 'RDP Server';
+                                                else if (port === 5900) serviceInfo = 'VNC Server';
+                                                else if (port === 3306) serviceInfo = 'MySQL Database';
+                                                else if (port === 5432) serviceInfo = 'PostgreSQL Database';
+                                                else if (port === 1433) serviceInfo = 'MSSQL Database';
+                                                else if (port === 27017) serviceInfo = 'MongoDB Database';
+                                                else if (port === 6379) serviceInfo = 'Redis Database';
+                                                else if (port === 9200) serviceInfo = 'Elasticsearch';
+                                                else if (port === 5672) serviceInfo = 'RabbitMQ';
+                                                else if (port === 9092) serviceInfo = 'Kafka';
+                                                else if (port === 2181) serviceInfo = 'Zookeeper';
+                                                else if (port === 6443) serviceInfo = 'Kubernetes API';
+                                                else if (port === 2375 || port === 2376) serviceInfo = 'Docker API';
+                                                else if (port === 25565) serviceInfo = 'Minecraft Server';
+                                                else if (port === 1883) serviceInfo = 'MQTT Broker';
+                                                else if (port === 161) serviceInfo = 'SNMP Agent';
+                                                else if (port === 389) serviceInfo = 'LDAP Server';
+                                                else if (port === 636) serviceInfo = 'LDAPS Server';
+
                                                 wsResolve({
                                                     success: true,
                                                     protocol: 'TCP',
-                                                    method: 'WebSocket',
-                                                    details: 'TCP connection established (service doesn\'t speak WebSocket protocol)'
+                                                    method: 'Service-Detection',
+                                                    service: serviceInfo,
+                                                    details: `${serviceInfo} detected on TCP port ${port} (non-WebSocket service)`
                                                 });
                                             } else {
                                                 wsResolve({
                                                     success: false,
                                                     protocol: 'TCP',
-                                                    method: 'WebSocket',
+                                                    method: 'Service-Detection',
                                                     details: `TCP connection closed (WebSocket code: ${event.code})`
                                                 });
                                             }
@@ -990,10 +1103,10 @@
                 item.id = `port-${portInfo.port}-${portInfo.protocol}`;
 
                 item.innerHTML = `
-        <div class="port-number">${portInfo.port}/${portInfo.protocol.toUpperCase()}</div>
-        <div class="port-service">${portInfo.service}</div>
-        <div class="port-status status-${status}">${status.toUpperCase()}</div>
-        `;
+                    <div class="port-number">${portInfo.port}/${portInfo.protocol.toUpperCase()}</div>
+                    <div class="port-service">${portInfo.service}</div>
+                    <div class="port-status status-${status}">${status.toUpperCase()}</div>
+                `;
 
                 return item;
             };
@@ -1010,6 +1123,16 @@
                         statusText = `${result.status.toUpperCase()} via ${result.workingProtocols.join(', ')} (${result.responseTime}ms)`;
                     }
 
+                    // Add detected service information
+                    const detectedServices = result.allResults ? result.allResults
+                        .filter(test => test.success && test.service)
+                        .map(test => test.service) : [];
+
+                    if (detectedServices.length > 0) {
+                        const uniqueServices = [...new Set(detectedServices)];
+                        statusText += ` - ${uniqueServices[0]}`;
+                    }
+
                     statusElement.textContent = statusText;
 
                     let tooltipText = `Status: ${result.status}\n`;
@@ -1018,10 +1141,18 @@
                     if (result.workingProtocols && result.workingProtocols.length > 0) {
                         tooltipText += `Working Protocols: ${result.workingProtocols.join(', ')}\n`;
                     }
+
+                    // Add detected services to tooltip (reuse the same detectedServices variable)
+                    if (detectedServices.length > 0) {
+                        const uniqueServices = [...new Set(detectedServices)];
+                        tooltipText += `Detected Services: ${uniqueServices.join(', ')}\n`;
+                    }
+
                     if (result.allResults && result.allResults.length > 0) {
                         tooltipText += `\nAll Test Results:\n`;
                         result.allResults.forEach(test => {
-                            tooltipText += `- ${test.method} (${test.protocol}): ${test.success ? 'SUCCESS' : 'FAILED'} - ${test.details}\n`;
+                            const serviceInfo = test.service ? ` [${test.service}]` : '';
+                            tooltipText += `- ${test.method} (${test.protocol}): ${test.success ? 'SUCCESS' : 'FAILED'}${serviceInfo} - ${test.details}\n`;
                         });
                     }
 
@@ -1060,9 +1191,9 @@
                     const item = document.createElement('div');
                     item.className = 'summary-item';
                     item.innerHTML = `
-        <div class="summary-count count-${status}">${count}</div>
-        <div>${status.charAt(0).toUpperCase() + status.slice(1)} Ports</div>
-        `;
+                        <div class="summary-count count-${status}">${count}</div>
+                        <div>${status.charAt(0).toUpperCase() + status.slice(1)} Ports</div>
+                    `;
                     grid.appendChild(item);
                 });
 
@@ -1089,14 +1220,14 @@
                 const startTime = Date.now();
 
                 resultsDiv.innerHTML = `
-        <div class="loading">
-            <p>Scanning ${target}...</p>
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
-            </div>
-            <p>Testing ${uniquePorts.length} common ports...</p>
-        </div>
-        `;
+                    <div class="loading">
+                        <p>Scanning ${target}...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <p>Testing ${uniquePorts.length} common ports...</p>
+                    </div>
+                `;
 
                 // Group ports by category
                 const categories = {};
@@ -1132,10 +1263,10 @@
                 // Add progress bar
                 const progressDiv = document.createElement('div');
                 progressDiv.innerHTML = `
-        <div class="progress-bar">
-            <div class="progress-fill"></div>
-        </div>
-        `;
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                `;
                 resultsDiv.insertBefore(progressDiv, resultsDiv.firstChild);
 
                 // Scan ports
