@@ -146,7 +146,6 @@
 
             // --- IPv6 Helper Functions ---
             const ipv6ToBigInt = (ip) => {
-                // Handle :: expansion manually
                 ip = ip.toLowerCase();
 
                 if (ip === '::') {
@@ -156,8 +155,8 @@
                 // Split on :: if present
                 if (ip.includes('::')) {
                     const parts = ip.split('::');
-                    const left = parts[0] ? parts[0].split(':') : [];
-                    const right = parts[1] ? parts[1].split(':') : [];
+                    const left = parts[0] ? parts[0].split(':').filter(p => p !== '') : [];
+                    const right = parts[1] ? parts[1].split(':').filter(p => p !== '') : [];
 
                     // Calculate missing zero groups
                     const missing = 8 - left.length - right.length;
@@ -316,7 +315,7 @@
                 const input_ip_bigint = ipv6ToBigInt(input_ip);
 
                 // Calculate the containing /64 subnet
-                const subnet_mask = (0xFFFFFFFFFFFFFFFFn << BigInt(128 - 64));
+                const subnet_mask = 0xFFFFFFFFFFFFFFFF0000000000000000n; // /64 mask
                 const containing_net_bigint = input_ip_bigint & subnet_mask;
                 const containing_net_ip = compressIPv6(bigIntToIPv6(containing_net_bigint));
 
@@ -327,7 +326,7 @@
                 }
 
                 // Calculate the prefix range
-                const prefix_mask = (0xFFFFFFFFFFFFFFFFn << BigInt(128 - input_cidr));
+                const prefix_mask = ~((1n << BigInt(128 - input_cidr)) - 1n);
                 const prefix_net_bigint = input_ip_bigint & prefix_mask;
                 const prefix_size = 2n ** BigInt(128 - input_cidr);
                 const prefix_end_bigint = prefix_net_bigint + prefix_size - 1n;
