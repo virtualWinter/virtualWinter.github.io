@@ -314,6 +314,16 @@
                 // --- Main Processing ---
                 const input_ip_bigint = ipv6ToBigInt(input_ip);
 
+                // Validate that the input IP is actually a valid network address for the given CIDR
+                const prefix_mask = ~((1n << BigInt(128 - input_cidr)) - 1n);
+                const calculated_net_bigint = input_ip_bigint & prefix_mask;
+
+                if (input_ip_bigint !== calculated_net_bigint) {
+                    const correct_network = compressIPv6(bigIntToIPv6(calculated_net_bigint));
+                    resultsDiv.innerHTML = `<p class="status status-invalid">Error: Invalid CIDR block. The IP address '${input_ip}' is not a valid network address for /${input_cidr}. The correct network address should be '${correct_network}/${input_cidr}'.</p>`;
+                    return;
+                }
+
                 // Calculate the containing /64 subnet
                 const subnet_mask = 0xFFFFFFFFFFFFFFFF0000000000000000n; // /64 mask
                 const containing_net_bigint = input_ip_bigint & subnet_mask;
@@ -325,9 +335,8 @@
                     return;
                 }
 
-                // Calculate the prefix range
-                const prefix_mask = ~((1n << BigInt(128 - input_cidr)) - 1n);
-                const prefix_net_bigint = input_ip_bigint & prefix_mask;
+                // Use the validated network address
+                const prefix_net_bigint = calculated_net_bigint;
                 const prefix_size = 2n ** BigInt(128 - input_cidr);
                 const prefix_end_bigint = prefix_net_bigint + prefix_size - 1n;
 
