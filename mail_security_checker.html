@@ -456,6 +456,14 @@
                     totalScore += 50; // Bonus for having MX records
                     maxScore += 50;
                 }
+                if (results.dkim && results.dkim.length > 0) {
+                    totalScore += 75; // Bonus for having DKIM
+                    maxScore += 75;
+                }
+                if (results.tlsa && results.tlsa.length > 0) {
+                    totalScore += 25; // Bonus for having TLSA records
+                    maxScore += 25;
+                }
 
                 const overallScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
                 let scoreClass = 'score-poor';
@@ -507,6 +515,28 @@
                     grid.appendChild(mxItem);
                 }
 
+                if (results.dkim) {
+                    const dkimItem = document.createElement('div');
+                    dkimItem.className = 'summary-item';
+                    const dkimClass = results.dkim.length > 0 ? 'score-excellent' : 'score-warning';
+                    dkimItem.innerHTML = `
+                        <div class="summary-score ${dkimClass}">${results.dkim.length}</div>
+                        <div>DKIM Keys</div>
+                    `;
+                    grid.appendChild(dkimItem);
+                }
+
+                if (results.tlsa) {
+                    const tlsaItem = document.createElement('div');
+                    tlsaItem.className = 'summary-item';
+                    const tlsaClass = results.tlsa.length > 0 ? 'score-excellent' : 'score-warning';
+                    tlsaItem.innerHTML = `
+                        <div class="summary-score ${tlsaClass}">${results.tlsa.length}</div>
+                        <div>TLSA Records</div>
+                    `;
+                    grid.appendChild(tlsaItem);
+                }
+
                 summary.appendChild(grid);
                 return summary;
             };
@@ -545,7 +575,7 @@
                 try {
                     const results = {};
                     let step = 0;
-                    const totalSteps = 5;
+                    const totalSteps = 6;
 
                     // Check MX records
                     updateProgress(++step, totalSteps);
@@ -568,9 +598,9 @@
                     );
                     results.dmarc = analyzeDMARC(dmarcRecord?.data);
 
-                    // Check DKIM (common selectors)
+                    // Check DKIM (common selectors + custom ones)
                     updateProgress(++step, totalSteps);
-                    const dkimSelectors = ['default', 'selector1', 'selector2', 'google', 'k1'];
+                    const dkimSelectors = ['default', 'selector1', 'selector2', 'google', 'k1', 'dkim'];
                     results.dkim = [];
                     for (const selector of dkimSelectors) {
                         const dkimData = await checkDNS(`${selector}._domainkey.${domain}`, 'TXT');
@@ -579,8 +609,23 @@
                         }
                     }
 
-                    // Certificate info
+                    // Check TLSA records for mail servers
                     updateProgress(++step, totalSteps);
+                    results.tlsa = [];
+                    if (results.mx.length > 0) {
+                        for (const mx of results.mx) {
+                            const mxHost = mx.data.replace(/\.$/, ''); // Remove trailing dot
+                            const tlsaData = await checkDNS(`_25._tcp.${mxHost}`, 'TLSA');
+                            if (tlsaData.Answer && tlsaData.Answer.length > 0) {
+                                results.tlsa.push({ 
+                                    host: mxHost, 
+                                    records: tlsaData.Answer.map(r => r.data) 
+                                });
+                            }
+                        }
+                    }
+
+                    // Certificate info
                     results.certificate = await checkCertificate(domain);
 
                     // Clear loading and show results
@@ -673,6 +718,29 @@
                         dkimSection.innerHTML += '<div class="analysis-item">No DKIM records found with common selectors. Check with your email provider for the correct selector.</div>';
                     }
                     resultsDiv.appendChild(dkimSection);
+
+                    // TLSA Section
+                    const tlsaSection = document.createElement('div');
+                    tlsaSection.className = 'security-section';
+                    tlsaSection.innerHTML = `
+                        <h3>TLSA Records (DNS-based Authentication) <span class="status-badge ${results.tlsa.length > 0 ? 'status-pass' : 'status-warning'}">${results.tlsa.length > 0 ? 'FOUND' : 'NOT FOUND'}</span></h3>
+                    `;
+                    
+                    if (results.tlsa.length > 0) {
+                        results.tlsa.forEach(tlsa => {
+                            tlsaSection.innerHTML += `
+                                <div class="analysis-item">
+                                    <strong>Mail Server:</strong> ${tlsa.host}<br>
+                                    <strong>TLSA Records:</strong><br>
+                                    ${tlsa.records.map(record => `<div class="record-data">${record}</div>`).join('')}
+                                </div>
+                            `;
+                        });
+                        tlsaSection.innerHTML += '<div class="analysis-item">✅ TLSA records provide additional certificate validation for enhanced security.</div>';
+                    } else {
+                        tlsaSection.innerHTML += '<div class="analysis-item">No TLSA records found. Consider implementing DANE (DNS-based Authentication of Named Entities) for enhanced certificate security.</div>';
+                    }
+                    resultsDiv.appendChild(tlsaSection);
 
                     // Certificate Section
                     const certSection = document.createElement('div');
