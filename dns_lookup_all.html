@@ -257,18 +257,29 @@
             // DNS over HTTPS resolver
             const DOH_ENDPOINT = 'https://cloudflare-dns.com/dns-query';
 
-            // Common DNS record types to check
+            // All DNS record types to check
             const RECORD_TYPES = [
                 { type: 'A', name: 'A Records (IPv4)' },
                 { type: 'AAAA', name: 'AAAA Records (IPv6)' },
-                { type: 'CNAME', name: 'CNAME Records' },
-                { type: 'MX', name: 'MX Records (Mail)' },
-                { type: 'TXT', name: 'TXT Records' },
+                { type: 'CAA', name: 'CAA Records (Certificate Authority)' },
+                { type: 'CERT', name: 'CERT Records (Certificate)' },
+                { type: 'CNAME', name: 'CNAME Records (Canonical Name)' },
+                { type: 'DNSKEY', name: 'DNSKEY Records (DNS Key)' },
+                { type: 'DS', name: 'DS Records (Delegation Signer)' },
+                { type: 'HTTPS', name: 'HTTPS Records (HTTPS Service)' },
+                { type: 'LOC', name: 'LOC Records (Location)' },
+                { type: 'MX', name: 'MX Records (Mail Exchange)' },
+                { type: 'NAPTR', name: 'NAPTR Records (Name Authority Pointer)' },
                 { type: 'NS', name: 'NS Records (Name Servers)' },
-                { type: 'SOA', name: 'SOA Record (Authority)' },
-                { type: 'PTR', name: 'PTR Records (Reverse)' },
-                { type: 'SRV', name: 'SRV Records (Services)' },
-                { type: 'CAA', name: 'CAA Records (Certificate Authority)' }
+                { type: 'PTR', name: 'PTR Records (Pointer/Reverse)' },
+                { type: 'SMIMEA', name: 'SMIMEA Records (S/MIME Certificate Association)' },
+                { type: 'SOA', name: 'SOA Record (Start of Authority)' },
+                { type: 'SRV', name: 'SRV Records (Service)' },
+                { type: 'SSHFP', name: 'SSHFP Records (SSH Fingerprint)' },
+                { type: 'SVCB', name: 'SVCB Records (Service Binding)' },
+                { type: 'TLSA', name: 'TLSA Records (TLS Certificate Association)' },
+                { type: 'TXT', name: 'TXT Records (Text)' },
+                { type: 'URI', name: 'URI Records (Uniform Resource Identifier)' }
             ];
 
             const checkDNS = async (domain, recordType) => {
@@ -297,21 +308,43 @@
                     case 'A':
                     case 'AAAA':
                         return record.data;
+                    case 'CAA':
+                        return record.data;
+                    case 'CERT':
+                        return record.data;
                     case 'CNAME':
+                        return record.data;
+                    case 'DNSKEY':
+                        return record.data;
+                    case 'DS':
+                        return record.data;
+                    case 'HTTPS':
+                        return record.data;
+                    case 'LOC':
                         return record.data;
                     case 'MX':
                         return `${record.data} (Priority: ${record.priority || 'N/A'})`;
-                    case 'TXT':
-                        return `"${record.data}"`;
+                    case 'NAPTR':
+                        return `${record.data} (Order: ${record.order || 'N/A'}, Preference: ${record.preference || 'N/A'})`;
                     case 'NS':
-                        return record.data;
-                    case 'SOA':
                         return record.data;
                     case 'PTR':
                         return record.data;
+                    case 'SMIMEA':
+                        return record.data;
+                    case 'SOA':
+                        return record.data;
                     case 'SRV':
                         return `${record.data} (Priority: ${record.priority || 'N/A'}, Weight: ${record.weight || 'N/A'}, Port: ${record.port || 'N/A'})`;
-                    case 'CAA':
+                    case 'SSHFP':
+                        return record.data;
+                    case 'SVCB':
+                        return record.data;
+                    case 'TLSA':
+                        return record.data;
+                    case 'TXT':
+                        return `"${record.data}"`;
+                    case 'URI':
                         return record.data;
                     default:
                         return record.data;
